@@ -1,10 +1,9 @@
 import { useCallback, useState } from "react";
 import { View, Text, FlatList, Pressable, Image, StyleSheet } from "react-native";
 import { Link, useFocusEffect } from "expo-router";
-import { supabase } from "@/lib/supabase";
 import { fetchListings, type Listing } from "@/lib/listings";
 
-export default function Dashboard() {
+export default function Browse() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,19 +23,14 @@ export default function Dashboard() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Link href="/(dashboard)/listing/new" style={styles.newButton}>
-          + New listing
+        <Text style={styles.headerTitle}>Homes for rent</Text>
+        <Link href="/(auth)/login" style={styles.loginLink}>
+          Landlord login
         </Link>
-        <Link href="/(dashboard)/profile" style={styles.profileLink}>
-          Profile
-        </Link>
-        <Pressable onPress={() => supabase.auth.signOut()}>
-          <Text style={styles.logout}>Log out</Text>
-        </Pressable>
       </View>
 
       {!loading && listings.length === 0 && (
-        <Text style={styles.empty}>No listings yet. Add your first one.</Text>
+        <Text style={styles.empty}>No listings available yet.</Text>
       )}
 
       <FlatList
@@ -44,7 +38,7 @@ export default function Dashboard() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
-          <Link href={`/(dashboard)/listing/${item.id}`} asChild>
+          <Link href={{ pathname: "/(browse)/listing/[id]", params: { id: item.id } }} asChild>
             <Pressable style={styles.card}>
               {item.photos[0] && <Image source={{ uri: item.photos[0] }} style={styles.thumb} />}
               <View style={styles.cardInfo}>
@@ -64,9 +58,8 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 16 },
-  newButton: { color: "#208AEF", fontWeight: "600", fontSize: 16 },
-  profileLink: { color: "#208AEF", fontSize: 16 },
-  logout: { color: "#d33", fontSize: 16 },
+  headerTitle: { fontSize: 20, fontWeight: "700" },
+  loginLink: { color: "#208AEF", fontWeight: "600" },
   empty: { textAlign: "center", color: "#888", marginTop: 40 },
   list: { padding: 16, gap: 12 },
   card: { flexDirection: "row", gap: 12, borderWidth: 1, borderColor: "#eee", borderRadius: 10, padding: 10 },
