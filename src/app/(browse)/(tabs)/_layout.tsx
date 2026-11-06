@@ -1,0 +1,54 @@
+import { Platform, useWindowDimensions } from "react-native";
+import { Tabs } from "expo-router";
+import { TabIcon } from "@/components/ui/tab-icon";
+import { FloatingTabBar } from "@/components/ui/floating-tab-bar";
+
+import { useTheme } from "@/lib/theme-context";
+
+const DESKTOP_BREAKPOINT = 900;
+
+export default function BrowseTabsLayout() {
+  const theme = useTheme();
+  const { colors } = theme;
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === "web" && width >= DESKTOP_BREAKPOINT;
+
+  return (
+    <Tabs
+      tabBar={(props) => (isDesktop ? null : <FloatingTabBar {...props} />)}
+      screenOptions={{
+        tabBarActiveTintColor: colors.primary,
+        headerShown: !isDesktop,
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "Explore",
+          headerShown: false,
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="grid" outline="grid-outline" focused={focused} color={color as string} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="favorites"
+        options={{
+          title: "Wishlists",
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="bookmarks" outline="bookmarks-outline" focused={focused} color={color as string} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="person" outline="person-outline" focused={focused} color={color as string} size={size} />
+          ),
+        }}
+      />
+    </Tabs>
+  );
+}

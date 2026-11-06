@@ -1,8 +1,24 @@
-import { useState } from "react";
-import { View, Text, TextInput, Pressable, Image, ScrollView, StyleSheet } from "react-native";
-import type { Listing, ListingInput } from "@/lib/listings";
+import { useState, useMemo } from "react";
+import { View, Text, Pressable, Image, ScrollView, StyleSheet } from "react-native";
+import type { Listing, ListingInput, PropertyType, UnitType } from "@/lib/listings";
+import { radius, spacing } from "@/constants/theme";
+import { useTheme, type Theme } from "@/lib/theme-context";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const AMENITY_OPTIONS = ["wifi", "parking", "laundry", "furnished", "pets_allowed"];
+
+const PROPERTY_TYPE_OPTIONS: { value: PropertyType; label: string }[] = [
+  { value: "home", label: "Home" },
+  { value: "guest_house", label: "Guest House" },
+  { value: "hotel", label: "Hotel" },
+];
+
+const UNIT_TYPE_OPTIONS: { value: UnitType; label: string }[] = [
+  { value: "single_room", label: "Single room" },
+  { value: "studio", label: "Studio" },
+  { value: "apartment", label: "Apartment" },
+];
 
 type Props = {
   initial?: Partial<Listing>;
@@ -23,6 +39,8 @@ export function ListingForm({
   submitting,
   submitLabel,
 }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [address, setAddress] = useState(initial?.address ?? "");
@@ -31,6 +49,8 @@ export function ListingForm({
   const [bedrooms, setBedrooms] = useState(initial?.bedrooms?.toString() ?? "");
   const [bathrooms, setBathrooms] = useState(initial?.bathrooms?.toString() ?? "");
   const [amenities, setAmenities] = useState<string[]>(initial?.amenities ?? []);
+  const [propertyType, setPropertyType] = useState<PropertyType>(initial?.property_type ?? "home");
+  const [unitType, setUnitType] = useState<UnitType | null>(initial?.unit_type ?? null);
 
   function toggleAmenity(a: string) {
     setAmenities((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
@@ -47,42 +67,53 @@ export function ListingForm({
       bathrooms: bathrooms ? Number(bathrooms) : null,
       amenities,
       photos,
+      property_type: propertyType,
+      unit_type: propertyType === "home" ? unitType : null,
     });
   }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <TextInput style={styles.input} placeholder="Title" value={title} onChangeText={setTitle} />
-      <TextInput
-        style={[styles.input, styles.multiline]}
-        placeholder="Description"
-        value={description}
-        onChangeText={setDescription}
-        multiline
-      />
-      <TextInput style={styles.input} placeholder="Address" value={address} onChangeText={setAddress} />
-      <TextInput style={styles.input} placeholder="City" value={city} onChangeText={setCity} />
-      <TextInput
-        style={styles.input}
-        placeholder="Price per month"
-        value={price}
-        onChangeText={setPrice}
-        keyboardType="numeric"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Bedrooms"
-        value={bedrooms}
-        onChangeText={setBedrooms}
-        keyboardType="numeric"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Bathrooms"
-        value={bathrooms}
-        onChangeText={setBathrooms}
-        keyboardType="numeric"
-      />
+      <Input placeholder="Title" value={title} onChangeText={setTitle} />
+      <Input placeholder="Description" value={description} onChangeText={setDescription} multiline />
+      <Input placeholder="Address" value={address} onChangeText={setAddress} />
+      <Input placeholder="City" value={city} onChangeText={setCity} />
+      <Input placeholder="Price per month" value={price} onChangeText={setPrice} keyboardType="numeric" />
+      <Input placeholder="Bedrooms" value={bedrooms} onChangeText={setBedrooms} keyboardType="numeric" />
+      <Input placeholder="Bathrooms" value={bathrooms} onChangeText={setBathrooms} keyboardType="numeric" />
+
+      <Text style={styles.label}>Property type</Text>
+      <View style={styles.amenityRow}>
+        {PROPERTY_TYPE_OPTIONS.map((option) => (
+          <Pressable
+            key={option.value}
+            style={[styles.chip, propertyType === option.value && styles.chipSelected]}
+            onPress={() => {
+              setPropertyType(option.value);
+              if (option.value !== "home") setUnitType(null);
+            }}
+          >
+            <Text style={propertyType === option.value ? styles.chipTextSelected : styles.chipText}>{option.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {propertyType === "home" && (
+        <>
+          <Text style={styles.label}>Property</Text>
+          <View style={styles.amenityRow}>
+            {UNIT_TYPE_OPTIONS.map((option) => (
+              <Pressable
+                key={option.value}
+                style={[styles.chip, unitType === option.value && styles.chipSelected]}
+                onPress={() => setUnitType(unitType === option.value ? null : option.value)}
+              >
+                <Text style={unitType === option.value ? styles.chipTextSelected : styles.chipText}>{option.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </>
+      )}
 
       <Text style={styles.label}>Amenities</Text>
       <View style={styles.amenityRow}>
@@ -103,33 +134,28 @@ export function ListingForm({
           <Image key={url} source={{ uri: url }} style={styles.photo} />
         ))}
       </View>
-      <Pressable style={styles.secondaryButton} onPress={onPickPhoto} disabled={uploadingPhoto}>
-        <Text style={styles.secondaryButtonText}>
-          {uploadingPhoto ? "Uploading..." : "Add photo"}
-        </Text>
-      </Pressable>
+      <Button
+        label="Add photo"
+        loading={uploadingPhoto}
+        loadingLabel="Uploading..."
+        variant="outline"
+        onPress={onPickPhoto}
+      />
 
-      <Pressable style={styles.button} onPress={handleSubmit} disabled={submitting}>
-        <Text style={styles.buttonText}>{submitting ? "Saving..." : submitLabel}</Text>
-      </Pressable>
+      <Button label={submitLabel} loading={submitting} loadingLabel="Saving..." onPress={handleSubmit} style={styles.submitButton} />
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 20, gap: 12 },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12, fontSize: 16 },
-  multiline: { minHeight: 80, textAlignVertical: "top" },
-  label: { fontSize: 14, fontWeight: "600", marginTop: 8, color: "#555" },
-  amenityRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { borderWidth: 1, borderColor: "#ccc", borderRadius: 16, paddingVertical: 6, paddingHorizontal: 12 },
-  chipSelected: { backgroundColor: "#208AEF", borderColor: "#208AEF" },
-  chipText: { color: "#333" },
-  chipTextSelected: { color: "#fff" },
-  photoRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  photo: { width: 80, height: 80, borderRadius: 8 },
-  secondaryButton: { borderWidth: 1, borderColor: "#208AEF", borderRadius: 8, padding: 12, alignItems: "center" },
-  secondaryButtonText: { color: "#208AEF", fontWeight: "600" },
-  button: { backgroundColor: "#208AEF", borderRadius: 8, padding: 14, alignItems: "center", marginTop: 8 },
-  buttonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
+  container: { padding: spacing.xl, gap: spacing.md },
+  label: { ...typography.caption, fontWeight: "600", marginTop: spacing.xs },
+  amenityRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  chip: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: spacing.md },
+  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { color: colors.text },
+  chipTextSelected: { color: colors.onPrimary },
+  photoRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  photo: { width: 80, height: 80, borderRadius: radius.md },
+  submitButton: { marginTop: spacing.sm },
 });

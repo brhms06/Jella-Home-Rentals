@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/lib/auth-context";
-import { fetchListing, updateListing, pickAndUploadPhoto, type Listing, type ListingInput } from "@/lib/listings";
+import { fetchMyListing, updateListing, pickAndUploadPhoto, type Listing, type ListingInput } from "@/lib/listings";
 import { ListingForm } from "@/components/listing-form";
 
 export default function EditListing() {
@@ -14,8 +14,9 @@ export default function EditListing() {
 
   useFocusEffect(
     useCallback(() => {
+      if (!session) return;
       let cancelled = false;
-      fetchListing(id).then((data) => {
+      fetchMyListing(id, session.user.id).then((data) => {
         if (cancelled) return;
         setListing(data);
         setPhotos(data.photos);
@@ -23,7 +24,7 @@ export default function EditListing() {
       return () => {
         cancelled = true;
       };
-    }, [id])
+    }, [id, session])
   );
 
   async function handlePickPhoto() {
