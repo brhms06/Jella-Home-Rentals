@@ -6,7 +6,7 @@ import { fetchOwnerRequests } from "./viewing-requests";
 
 const SEEN_KEY = "inbox_seen_at";
 
-export type ContactEvent = { id: string; listing_id: string; listing_title: string; created_at: string };
+export type ContactEvent = { id: string; listing_id: string; listing_title: string; event: "contact" | "arrived"; created_at: string };
 
 export async function fetchContactEvents() {
   const { data, error } = await supabase.rpc("owner_contact_events", { p_limit: 50 });

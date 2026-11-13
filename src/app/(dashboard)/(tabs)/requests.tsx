@@ -110,8 +110,14 @@ export default function Inbox() {
               <View style={styles.card}>
                 <View style={styles.rowTop}>
                   <View style={styles.contactRow}>
-                    <Ionicons name="logo-whatsapp" size={20} color={colors.whatsapp} />
-                    <Text style={styles.name} numberOfLines={1}>A renter opened WhatsApp</Text>
+                    <Ionicons
+                      name={c.event === "arrived" ? "flag" : "logo-whatsapp"}
+                      size={20}
+                      color={c.event === "arrived" ? colors.primary : colors.whatsapp}
+                    />
+                    <Text style={styles.name} numberOfLines={1}>
+                      {c.event === "arrived" ? "A renter arrived at the property" : "A renter opened WhatsApp"}
+                    </Text>
                   </View>
                   {entry.at > seenAt && <Badge label="New" tone="success" />}
                 </View>

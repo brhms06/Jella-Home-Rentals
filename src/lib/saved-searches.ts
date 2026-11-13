@@ -29,7 +29,7 @@ const isEmpty = (s: SearchState) =>
 // "Lagos · $200-$500 · 2+ beds"
 export function describeSearch(s: SearchState) {
   const parts = [s.city || "Anywhere"];
-  if (s.minPrice || s.maxPrice) parts.push(`$${s.minPrice || 0}-${s.maxPrice ? "$" + s.maxPrice : "any"}`);
+  if (s.minPrice || s.maxPrice) parts.push(`${s.minPrice || 0}-${s.maxPrice || "any"} XAF`);
   if (s.minBedrooms) parts.push(`${s.minBedrooms}+ beds`);
   if (s.category !== "all") parts.push(s.category.replace(/_/g, " "));
   return parts.join(" · ");

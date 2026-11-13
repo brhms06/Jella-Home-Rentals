@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { xaf } from "@/lib/listings";
 import { View, Text, Image, Pressable, StyleSheet, useWindowDimensions } from "react-native";
 import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation, withSpring } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -101,7 +102,7 @@ export function ListingScene({ photos, title, price, facts, location, badges, ti
           <View style={styles.titleRow}>
             <Text style={styles.title} numberOfLines={2}>{title}</Text>
             <Text style={styles.price}>
-              ${price}
+              {xaf(price)}
               <Text style={styles.priceUnit}>/month</Text>
             </Text>
           </View>

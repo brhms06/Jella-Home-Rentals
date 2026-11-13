@@ -4,7 +4,7 @@ export type ListingStats = { listing_id: string; views: number; contacts: number
 export type DayViews = { day: string; views: number };
 
 // Fire-and-forget: analytics must never break the screen that calls it.
-export async function logListingEvent(listingId: string, deviceId: string, event: "view" | "contact") {
+export async function logListingEvent(listingId: string, deviceId: string, event: "view" | "contact" | "arrived") {
   try {
     await supabase.rpc("log_listing_event", { p_listing_id: listingId, p_device_id: deviceId, p_event: event });
   } catch {}

@@ -1,4 +1,5 @@
 import { TAB_BAR_SPACE } from "@/components/ui/floating-tab-bar";
+import { xaf } from "@/lib/listings";
 import { useCallback, useState, useMemo } from "react";
 import { View, Text, FlatList, RefreshControl, StyleSheet, Alert } from "react-native";
 import { useFocusEffect } from "expo-router";
@@ -12,6 +13,7 @@ import { useTheme, type Theme } from "@/lib/theme-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
+import { setAccessMode } from "@/lib/admin";
 import { fetchBoostStats, fetchTopListings, fetchModerationLog, MODERATION_LABEL, type BoostStats, type TopListing, type ModerationEntry } from "@/lib/admin";
 import { timeAgo } from "@/lib/inbox";
 import { fetchReviewsForAdmin, setReviewHidden, type AdminReview } from "@/lib/reviews";
@@ -159,13 +161,13 @@ export default function Admin() {
 
           <View style={styles.highlightCard}>
             <Text style={styles.highlightLabel}>Earnings this month</Text>
-            <Text style={styles.highlightValue}>${stats.monthRevenue.toLocaleString()}</Text>
+            <Text style={styles.highlightValue}>{xaf(stats.monthRevenue)}</Text>
           </View>
 
           <View style={styles.widgetRow}>
             <View style={styles.widgetCard}>
               <Text style={styles.widgetLabel}>Total revenue</Text>
-              <Text style={styles.widgetValue}>${stats.totalRevenue.toLocaleString()}</Text>
+              <Text style={styles.widgetValue}>{xaf(stats.totalRevenue)}</Text>
               {stats.revenueSeries.some((r) => r.value > 0) && (
                 <LineChart
                   data={stats.revenueSeries.map((r) => ({ value: r.value }))}
@@ -226,8 +228,8 @@ export default function Admin() {
             <View style={styles.widgetRow}>
               <View style={styles.widgetCard}>
                 <Text style={styles.widgetLabel}>Boost revenue</Text>
-                <Text style={styles.widgetValue}>${boost.totalRevenue.toLocaleString()}</Text>
-                <Text style={styles.widgetLabel}>${boost.monthRevenue.toLocaleString()} this month</Text>
+                <Text style={styles.widgetValue}>{xaf(boost.totalRevenue)}</Text>
+                <Text style={styles.widgetLabel}>{xaf(boost.monthRevenue)} this month</Text>
               </View>
               <View style={styles.widgetCard}>
                 <Text style={styles.widgetLabel}>Active boosts</Text>
@@ -381,8 +383,21 @@ export default function Admin() {
                   <Badge label="Pending" tone="muted" />
                 </View>
                 <Text style={styles.subtitle}>
-                  {item.city ?? "—"} · ${item.price}/mo
+                  {item.city ?? "—"} · {xaf(item.price)}/mo
                 </Text>
+                <Button
+                  label={`Access: ${item.access_mode === "car" ? "by car" : "on foot"} (tap to change)`}
+                  variant="text"
+                  onPress={async () => {
+                    const next = item.access_mode === "car" ? "foot" : "car";
+                    try {
+                      await setAccessMode(item.id, next);
+                      setListings((prev) => prev.map((l) => (l.id === item.id ? { ...l, access_mode: next } : l)));
+                    } catch {
+                      Alert.alert("Couldn't update", "Please try again.");
+                    }
+                  }}
+                />
                 <View style={styles.actionRow}>
                   <Button label="Verify" loading={updatingId === item.id} variant="outline" onPress={() => handleVerification(item.id, "verified")} style={styles.actionButton} />
                   <Button label="Reject" loading={updatingId === item.id} variant="outline" color={colors.danger} onPress={() => handleVerification(item.id, "rejected")} style={styles.actionButton} />

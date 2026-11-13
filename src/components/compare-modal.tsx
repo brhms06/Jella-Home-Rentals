@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { xaf } from "@/lib/listings";
 import { View, Text, Modal, ScrollView, Pressable, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,7 +18,7 @@ export function CompareModal({ listings, onClose }: { listings: PublicListing[];
   const cheapest = Math.min(...listings.map((l) => l.price));
 
   const rows: { name: string; render: (l: PublicListing) => string; best?: (l: PublicListing) => boolean }[] = [
-    { name: "Price / month", render: (l) => `$${l.price}`, best: (l) => l.price === cheapest },
+    { name: "Price / month", render: (l) => xaf(l.price), best: (l) => l.price === cheapest },
     { name: "City", render: (l) => l.city ?? "—" },
     { name: "Type", render: (l) => label(l.property_type) },
     { name: "Unit", render: (l) => label(l.unit_type) },

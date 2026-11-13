@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo, useState } from "react";
+import { xaf } from "@/lib/listings";
 import { View, Text, Image, Pressable, ScrollView, StyleSheet, type GestureResponderEvent, type NativeSyntheticEvent, type NativeScrollEvent } from "react-native";
 import { radius, spacing, cardShadow } from "@/constants/theme";
 import { useTheme, type Theme } from "@/lib/theme-context";
@@ -49,7 +50,7 @@ export const ListingCard = memo(function ListingCard({ listing, showStatus, isFa
           )}
         </View>
         <Text style={styles.subtitle}>
-          {listing.city ?? "—"} · ${listing.price}/mo{availabilityText(listing) ? ` · ${availabilityText(listing)}` : ""}
+          {listing.city ?? "—"} · {xaf(listing.price)}/mo{availabilityText(listing) ? ` · ${availabilityText(listing)}` : ""}
         </Text>
       </View>
       {onToggleFavorite && (
@@ -90,7 +91,7 @@ const GridCard = memo(function GridCard({ listing, isFavorite, onToggleFavorite 
         {listing.title}
       </Text>
       <Text style={gridStyles.subtitle} numberOfLines={1}>
-        {listing.city ?? "—"} · ${listing.price}/mo{availabilityText(listing) ? ` · ${availabilityText(listing)}` : ""}
+        {listing.city ?? "—"} · {xaf(listing.price)}/mo{availabilityText(listing) ? ` · ${availabilityText(listing)}` : ""}
       </Text>
     </View>
   );
@@ -164,7 +165,7 @@ const FeedCard = memo(function FeedCard({ listing, showStatus, isFavorite, onTog
       <Text style={feedStyles.subtitle} numberOfLines={1}>
         {listing.city ?? "—"}{availabilityText(listing) ? ` · ${availabilityText(listing)}` : ""}
       </Text>
-      <Text style={feedStyles.price}>${listing.price}/mo</Text>
+      <Text style={feedStyles.price}>{xaf(listing.price)}/mo</Text>
     </View>
   );
 });

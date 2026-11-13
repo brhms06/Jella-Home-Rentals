@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { xaf } from "@/lib/listings";
 import { View, Text, Image, Pressable, Animated, PanResponder, StyleSheet, ActivityIndicator, useWindowDimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
@@ -171,7 +172,7 @@ export function SwipeDeck() {
                       {current.city ?? "—"} · {current.bedrooms ?? "—"} bed · {current.bathrooms ?? "—"} bath
                     </Text>
                     <Text style={styles.cardPrice}>
-                      ${current.price}
+                      {xaf(current.price)}
                       <Text style={styles.cardPriceUnit}>/month</Text>
                     </Text>
                   </View>

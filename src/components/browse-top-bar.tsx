@@ -118,7 +118,7 @@ export function BrowseTopBar({
     };
   });
 
-  const priceLabel = minPrice || maxPrice ? `$${minPrice || "0"} – $${maxPrice || "∞"}` : "Any";
+  const priceLabel = minPrice || maxPrice ? `${minPrice || "0"} – ${maxPrice || "∞"} XAF` : "Any";
 
   return (
     <View style={styles.nav} onLayout={(e) => setNavHeight(e.nativeEvent.layout.height)}>

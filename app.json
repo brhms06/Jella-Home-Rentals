@@ -33,7 +33,13 @@
           "imageWidth": 120
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Jella uses your location to pin your property on the map and to guide you to homes you have unlocked."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

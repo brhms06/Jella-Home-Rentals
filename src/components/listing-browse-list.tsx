@@ -15,6 +15,7 @@ import { BrowseTopBar, type Category } from "@/components/browse-top-bar";
 import { HomeFeed } from "@/components/home-feed";
 import { SearchModal } from "@/components/search-modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ExploreMap } from "@/components/explore-map";
 
 const GRID_GAP = spacing.lg;
 const DESKTOP_BREAKPOINT = 900;
@@ -40,6 +41,7 @@ export function ListingBrowseList({ getHref, deviceId }: { getHref: (id: string)
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [viewAll, setViewAll] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
   const insets = useSafeAreaInsets();
   const [headerH, setHeaderH] = useState(0);
 
@@ -304,6 +306,17 @@ export function ListingBrowseList({ getHref, deviceId }: { getHref: (id: string)
         ListHeaderComponent={showFeed ? <HomeFeed getHref={getHref} onSectionPress={handleSectionPress} /> : undefined}
         ListHeaderComponentStyle={styles.listHeaderMobile}
       />
+
+      {mapOpen && (
+        <View style={[StyleSheet.absoluteFill, { zIndex: 5 }]}>
+          <ExploreMap filters={filters} bottomInset={TAB_BAR_SPACE + 64} />
+        </View>
+      )}
+
+      <Pressable style={[styles.mapToggle, { bottom: TAB_BAR_SPACE + spacing.sm }]} onPress={() => setMapOpen((v) => !v)} accessibilityRole="button">
+        <Ionicons name={mapOpen ? "list" : "map"} size={16} color={colors.background} />
+        <Text style={styles.mapToggleText}>{mapOpen ? "List" : "Map"}</Text>
+      </Pressable>
     </View>
   );
 }
@@ -311,6 +324,20 @@ export function ListingBrowseList({ getHref, deviceId }: { getHref: (id: string)
 const makeStyles = ({ colors, typography, dark }: Theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   overlay: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 10 },
+  mapToggle: {
+    position: "absolute",
+    alignSelf: "center",
+    zIndex: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.pill,
+    backgroundColor: colors.text,
+    ...cardShadow,
+  },
+  mapToggleText: { color: colors.background, fontWeight: "700", fontSize: 14 },
   searchWrap: { alignItems: "center", marginTop: spacing.md },
   searchBar: {
     overflow: "hidden",

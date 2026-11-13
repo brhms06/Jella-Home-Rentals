@@ -8,6 +8,9 @@ export type UnitType = "single_room" | "studio" | "apartment";
 // no lat/lng reaches the client and no expo-location dependency exists yet.
 export const DEFAULT_CITY = "Buea";
 
+// Prices are Central African CFA francs: "150,000 XAF".
+export const xaf = (n: number | string) => `${Number(n).toLocaleString("en-US")} XAF`;
+
 export type Listing = {
   id: string;
   owner_id: string;
@@ -33,18 +36,22 @@ export type Listing = {
   price_dropped_at: string | null;
   nearby: string[];
   neighbourhood_note: string | null;
+  access_mode: "foot" | "car"; // how renters reach it: footpath only, or a motorable road
   created_at: string;
   updated_at: string;
 };
+
+// Privacy-safe pin returned by the public RPCs (offset up to ~490 m from the real spot).
+type Approx = { approx_lat: number | null; approx_lng: number | null };
 
 export type ListingSummary = Pick<
   Listing,
   "id" | "title" | "city" | "price" | "photos" | "status" | "verification_status"
 > & { availability?: Listing["availability"]; is_boosted?: boolean };
 
-export type PublicListing = Omit<Listing, "owner_id" | "address" | "lat" | "lng" | "boosted_until" | "previous_price" | "price_dropped_at" | "nearby" | "neighbourhood_note"> & { owner_verified?: boolean; is_boosted?: boolean };
+export type PublicListing = Omit<Listing, "owner_id" | "address" | "lat" | "lng" | "boosted_until" | "previous_price" | "price_dropped_at" | "nearby" | "neighbourhood_note"> & Approx & { owner_verified?: boolean; is_boosted?: boolean };
 
-export type PublicListingDetail = Omit<Listing, "owner_id" | "address" | "lat" | "lng" | "boosted_until" | "previous_price" | "price_dropped_at"> & {
+export type PublicListingDetail = Omit<Listing, "owner_id" | "address" | "lat" | "lng" | "boosted_until" | "previous_price" | "price_dropped_at"> & Approx & {
   address: string | null;
   lat: number | null;
   lng: number | null;
@@ -68,6 +75,9 @@ export type ListingInput = {
   unit_type: UnitType | null;
   nearby: string[];
   neighbourhood_note: string | null;
+  lat: number | null;
+  lng: number | null;
+  access_mode: "foot" | "car";
 };
 
 export type SortOption = "newest" | "price_asc" | "price_desc";

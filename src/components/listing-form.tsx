@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
 import { View, Text, Pressable, Image, ScrollView, StyleSheet } from "react-native";
 import { NEARBY_OPTIONS } from "@/components/neighbourhood";
+import { LocationPicker } from "@/components/location-picker";
+import type { LatLng } from "@/lib/maps";
 import type { Listing, ListingInput, PropertyType, UnitType } from "@/lib/listings";
 import { radius, spacing } from "@/constants/theme";
 import { useTheme, type Theme } from "@/lib/theme-context";
@@ -54,6 +56,10 @@ export function ListingForm({
   const [unitType, setUnitType] = useState<UnitType | null>(initial?.unit_type ?? null);
   const [nearby, setNearby] = useState<string[]>(initial?.nearby ?? []);
   const [note, setNote] = useState(initial?.neighbourhood_note ?? "");
+  const [pin, setPin] = useState<LatLng | null>(
+    initial?.lat != null && initial?.lng != null ? { latitude: initial.lat, longitude: initial.lng } : null
+  );
+  const [accessMode, setAccessMode] = useState<"foot" | "car">(initial?.access_mode ?? "foot");
 
   function toggleAmenity(a: string) {
     setAmenities((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
@@ -74,6 +80,9 @@ export function ListingForm({
       unit_type: propertyType === "home" ? unitType : null,
       nearby,
       neighbourhood_note: note.trim() || null,
+      lat: pin?.latitude ?? null,
+      lng: pin?.longitude ?? null,
+      access_mode: accessMode,
     });
   }
 
@@ -81,9 +90,31 @@ export function ListingForm({
     <ScrollView contentContainerStyle={styles.container}>
       <Input placeholder="Title" value={title} onChangeText={setTitle} />
       <Input placeholder="Description" value={description} onChangeText={setDescription} multiline />
+      <Text style={styles.label}>Location</Text>
+      <LocationPicker
+        value={pin}
+        onChange={setPin}
+        onAddress={(a) => {
+          // only fill what the landlord hasn't typed themselves
+          if (!address.trim() && a.address) setAddress(a.address);
+          if (!city.trim() && a.city) setCity(a.city);
+        }}
+      />
       <Input placeholder="Address" value={address} onChangeText={setAddress} />
       <Input placeholder="City" value={city} onChangeText={setCity} />
-      <Input placeholder="Price per month" value={price} onChangeText={setPrice} keyboardType="numeric" />
+
+      <Text style={styles.label}>How do renters get there?</Text>
+      <View style={styles.amenityRow}>
+        {([
+          { value: "foot", label: "On foot (footpath)" },
+          { value: "car", label: "By car (motorable road)" },
+        ] as const).map((o) => (
+          <Pressable key={o.value} style={[styles.chip, accessMode === o.value && styles.chipSelected]} onPress={() => setAccessMode(o.value)}>
+            <Text style={accessMode === o.value ? styles.chipTextSelected : styles.chipText}>{o.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Input placeholder="Price per month (XAF)" value={price} onChangeText={setPrice} keyboardType="numeric" />
       <Input placeholder="Bedrooms" value={bedrooms} onChangeText={setBedrooms} keyboardType="numeric" />
       <Input placeholder="Bathrooms" value={bathrooms} onChangeText={setBathrooms} keyboardType="numeric" />
 

@@ -11,6 +11,7 @@ import { useTheme, type Theme } from "@/lib/theme-context";
 import { Badge } from "@/components/ui/badge";
 import { BoostListing } from "@/components/boost-listing";
 import { Neighbourhood } from "@/components/neighbourhood";
+import { LocationPreview } from "@/components/listing-location";
 import { ListingScene, type SceneTile } from "@/components/listing-scene";
 
 export default function ListingDetail() {
@@ -58,7 +59,8 @@ export default function ListingDetail() {
   async function handleDuplicate() {
     if (!listing || !session) return;
     try {
-      const { id: _id, owner_id: _o, lat: _la, lng: _ln, status: _s, verification_status: _v, created_at: _c, updated_at: _u, boosted_until: _b, previous_price: _pp, price_dropped_at: _pd, ...rest } = listing;
+      // the pin is kept: a duplicate is usually another unit in the same building
+      const { id: _id, owner_id: _o, status: _s, verification_status: _v, created_at: _c, updated_at: _u, boosted_until: _b, previous_price: _pp, price_dropped_at: _pd, ...rest } = listing;
       const copy = await createListing(
         { ...rest, title: `Copy of ${listing.title}`, description: rest.description ?? "", address: rest.address ?? "", city: rest.city ?? "" },
         session.user.id
@@ -127,6 +129,12 @@ export default function ListingDetail() {
         primary={{ label: "Boost", onPress: () => (boostable ? setBoostOpen(true) : Alert.alert("Boost unavailable", "Only active, verified listings can be boosted.")) }}
         onBack={() => (router.canGoBack() ? router.back() : router.replace("/(dashboard)/(tabs)"))}
       >
+        <LocationPreview
+          approx={null}
+          exact={listing.lat != null && listing.lng != null ? { latitude: listing.lat, longitude: listing.lng } : null}
+          accessMode={listing.access_mode ?? "foot"}
+        />
+        {listing.lat == null && <Text style={styles.noPin}>No map pin yet. Edit the listing to add its location.</Text>}
         <Neighbourhood nearby={listing.nearby ?? []} note={listing.neighbourhood_note} />
       </ListingScene>
 
@@ -154,4 +162,5 @@ const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: spacing.lg },
   sheetTitle: { ...typography.heading },
   sheetBody: { padding: spacing.lg },
+  noPin: { ...typography.caption, color: colors.danger },
 });

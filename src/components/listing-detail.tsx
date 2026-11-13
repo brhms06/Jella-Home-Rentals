@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode, useMemo } from "react";
+import { xaf } from "@/lib/listings";
 import { View, Text, Image, ScrollView, Pressable, Share, StyleSheet, Linking, AppState, Alert, Platform, Modal, KeyboardAvoidingView, useWindowDimensions } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import * as ExpoLinking from "expo-linking";
@@ -30,6 +31,7 @@ import { fetchFavoriteIds, addFavorite, removeFavorite, fetchMyFavoriteListings 
 import type { PublicListing } from "@/lib/listings";
 import { fetchPriceDrops } from "@/lib/price-drops";
 import { Neighbourhood } from "@/components/neighbourhood";
+import { LocationPreview, NavigationModal } from "@/components/listing-location";
 
 const UNLOCK_PRICE_LABEL = "500 XAF";
 const DESKTOP_BREAKPOINT = 900;
@@ -72,7 +74,7 @@ export function ListingDetail({
   const [revealed, setRevealed] = useState(false);
   const navigation = useNavigation();
   const consumedRef = useRef(false);
-  const [sheet, setSheet] = useState<"unlock" | "viewing" | "report" | null>(null);
+  const [sheet, setSheet] = useState<"unlock" | "viewing" | "report" | "nav" | null>(null);
   const [saved, setSaved] = useState(false);
   const [compareWith, setCompareWith] = useState<PublicListing[] | null>(null);
   const [oldPrice, setOldPrice] = useState<number | null>(null);
@@ -322,7 +324,7 @@ export function ListingDetail({
               {/* ponytail: RN's ViewStyle type doesn't know "sticky" (web-only value) — cast at the one usage site instead of widening the shared style type */}
               <View style={[styles.sidebarCard, { position: "sticky" } as object]}>
                 <Text style={styles.sidebarPrice}>
-                  ${listing.price}
+                  {xaf(listing.price)}
                   <Text style={styles.sidebarPriceUnit}>/mo</Text>
                 </Text>
                 {actionSection}
@@ -370,13 +372,20 @@ export function ListingDetail({
     }
   }
 
+  const exact = revealed && listing.lat != null && listing.lng != null ? { latitude: listing.lat, longitude: listing.lng } : null;
+  const approx = listing.approx_lat != null && listing.approx_lng != null ? { latitude: listing.approx_lat, longitude: listing.approx_lng } : null;
+
   function openMap() {
-    if (!revealed || !(listing.lat || listing.address)) {
+    if (exact) {
+      setSheet("nav");
+      return;
+    }
+    if (!revealed || !listing.address) {
       setSheet("unlock");
       return;
     }
-    const q = listing.lat && listing.lng ? `${listing.lat},${listing.lng}` : encodeURIComponent(`${listing.address}, ${listing.city ?? ""}`);
-    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`).catch(() => {});
+    // ponytail: older listings have no pin yet; fall back to an address search in the maps app
+    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${listing.address}, ${listing.city ?? ""}`)}`).catch(() => {});
   }
 
   const tiles: SceneTile[] = [
@@ -399,7 +408,7 @@ export function ListingDetail({
         location={location}
         badges={
           <>
-            {oldPrice !== null && <Badge label={`Price dropped from $${oldPrice}`} tone="success" />}
+            {oldPrice !== null && <Badge label={`Price dropped from ${xaf(oldPrice)}`} tone="success" />}
             {listing.owner_verified && <Badge label="Verified landlord" tone="success" />}
             {availability && <Badge label={availability} tone="muted" />}
           </>
@@ -411,10 +420,22 @@ export function ListingDetail({
         primary={{ label: primaryLabel, onPress: () => setSheet("unlock") }}
         onBack={() => (router.canGoBack() ? router.back() : router.replace("/(browse)/(tabs)"))}
       >
+        <LocationPreview approx={approx} exact={exact} accessMode={listing.access_mode ?? "foot"} onDirections={() => setSheet("nav")} />
         <Neighbourhood nearby={listing.nearby ?? []} note={listing.neighbourhood_note} />
         <HostedByBlock listing={listing} />
         <ListingReviews listingId={listing.id} deviceId={deviceId} />
       </ListingScene>
+
+      {exact && (
+        <NavigationModal
+          visible={sheet === "nav"}
+          onClose={() => setSheet(null)}
+          destination={exact}
+          accessMode={listing.access_mode ?? "foot"}
+          listingId={listing.id}
+          deviceId={deviceId}
+        />
+      )}
 
       <RequestViewing listingId={listing.id} deviceId={deviceId} visible={sheet === "viewing"} onVisibleChange={(v) => setSheet(v ? "viewing" : null)} />
 

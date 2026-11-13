@@ -230,7 +230,7 @@ export function SearchModal({
             <View style={styles.filterRow}>
               <TextInput
                 style={[styles.fieldInput, styles.filterHalf]}
-                placeholder="Min $"
+                placeholder="Min XAF"
                 placeholderTextColor={colors.textMuted}
                 value={minPrice}
                 onChangeText={setMinPrice}
@@ -238,7 +238,7 @@ export function SearchModal({
               />
               <TextInput
                 style={[styles.fieldInput, styles.filterHalf]}
-                placeholder="Max $"
+                placeholder="Max XAF"
                 placeholderTextColor={colors.textMuted}
                 value={maxPrice}
                 onChangeText={setMaxPrice}

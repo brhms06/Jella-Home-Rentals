@@ -1,4 +1,5 @@
 import { TAB_BAR_SPACE } from "@/components/ui/floating-tab-bar";
+import { xaf } from "@/lib/listings";
 import { useCallback, useEffect, useState, useMemo } from "react";
 import { View, Text, FlatList, Pressable, RefreshControl, StyleSheet } from "react-native";
 import { Link, useFocusEffect } from "expo-router";
@@ -126,7 +127,7 @@ export default function Favorites() {
                 <View style={styles.drop}>
                   <Ionicons name="trending-down" size={14} color={colors.success} />
                   <Text style={styles.dropText}>
-                    Price dropped ${drops.get(item.id)!.previous_price} → ${drops.get(item.id)!.price}
+                    Price dropped {xaf(drops.get(item.id)!.previous_price)} → {xaf(drops.get(item.id)!.price)}
                   </Text>
                 </View>
               )}

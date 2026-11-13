@@ -129,3 +129,9 @@ export const MODERATION_LABEL: Record<string, string> = {
   id_verified: "Approved a landlord ID",
   id_rejected: "Rejected a landlord ID",
 };
+
+// Admin override of how a property is reached (landlords set it on the form; admins can correct it).
+export async function setAccessMode(id: string, access_mode: "foot" | "car") {
+  const { error } = await supabase.from("listings").update({ access_mode }).eq("id", id);
+  if (error) throw error;
+}
