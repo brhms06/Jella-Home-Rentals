@@ -8,6 +8,7 @@ import { useTheme, type Theme } from "@/lib/theme-context";
 
 const LINKS = [
   { href: "/(dashboard)/(tabs)" as const, label: "Home", icon: "home-outline" as const },
+  { href: "/(dashboard)/(tabs)/requests" as const, label: "Inbox", icon: "mail-outline" as const },
   { href: "/(dashboard)/(tabs)/admin" as const, label: "Admin", icon: "grid-outline" as const },
   { href: "/(dashboard)/(tabs)/profile" as const, label: "Profile", icon: "person-circle-outline" as const },
 ];

@@ -3,6 +3,7 @@ import { Tabs } from "expo-router";
 
 import { useTheme } from "@/lib/theme-context";
 import { useAuth } from "@/lib/auth-context";
+import { useInboxCount } from "@/lib/inbox";
 import { useIsDesktop } from "@/hooks/use-desktop";
 import { TabIcon } from "@/components/ui/tab-icon";
 import { FloatingTabBar } from "@/components/ui/floating-tab-bar";
@@ -14,6 +15,7 @@ export default function DashboardTabsLayout() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === "superadmin";
   const isDesktop = useIsDesktop();
+  const inboxCount = useInboxCount(!!profile);
 
   const tabs = (
     <Tabs
@@ -24,7 +26,7 @@ export default function DashboardTabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: ({ color, size, focused }) => <TabIcon name="home" outline="home-outline" focused={focused} color={color as string} size={size} /> }} />
-      <Tabs.Screen name="requests" options={{ title: "Requests", tabBarIcon: ({ color, size, focused }) => <TabIcon name="calendar" outline="calendar-outline" focused={focused} color={color as string} size={size} /> }} />
+      <Tabs.Screen name="requests" options={{ title: "Inbox", tabBarBadge: inboxCount > 0 ? (inboxCount > 9 ? "9+" : inboxCount) : undefined, tabBarIcon: ({ color, size, focused }) => <TabIcon name="mail" outline="mail-outline" focused={focused} color={color as string} size={size} /> }} />
       <Tabs.Screen name="admin" options={{ title: "Admin", href: isAdmin ? undefined : null, tabBarIcon: ({ color, size, focused }) => <TabIcon name="shield-checkmark" outline="shield-checkmark-outline" focused={focused} color={color as string} size={size} /> }} />
       <Tabs.Screen name="profile" options={{ title: "Profile", tabBarIcon: ({ color, size, focused }) => <TabIcon name="person" outline="person-outline" focused={focused} color={color as string} size={size} /> }} />
     </Tabs>

@@ -28,6 +28,11 @@ export type Listing = {
   verification_status: string;
   availability: "available" | "occupied";
   available_from: string | null; // YYYY-MM-DD
+  boosted_until: string | null;
+  previous_price: number | null;
+  price_dropped_at: string | null;
+  nearby: string[];
+  neighbourhood_note: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -35,11 +40,11 @@ export type Listing = {
 export type ListingSummary = Pick<
   Listing,
   "id" | "title" | "city" | "price" | "photos" | "status" | "verification_status"
-> & { availability?: Listing["availability"] };
+> & { availability?: Listing["availability"]; is_boosted?: boolean };
 
-export type PublicListing = Omit<Listing, "owner_id" | "address" | "lat" | "lng"> & { owner_verified?: boolean };
+export type PublicListing = Omit<Listing, "owner_id" | "address" | "lat" | "lng" | "boosted_until" | "previous_price" | "price_dropped_at" | "nearby" | "neighbourhood_note"> & { owner_verified?: boolean; is_boosted?: boolean };
 
-export type PublicListingDetail = Omit<Listing, "owner_id" | "address" | "lat" | "lng"> & {
+export type PublicListingDetail = Omit<Listing, "owner_id" | "address" | "lat" | "lng" | "boosted_until" | "previous_price" | "price_dropped_at"> & {
   address: string | null;
   lat: number | null;
   lng: number | null;
@@ -61,6 +66,8 @@ export type ListingInput = {
   photos: string[];
   property_type: PropertyType;
   unit_type: UnitType | null;
+  nearby: string[];
+  neighbourhood_note: string | null;
 };
 
 export type SortOption = "newest" | "price_asc" | "price_desc";

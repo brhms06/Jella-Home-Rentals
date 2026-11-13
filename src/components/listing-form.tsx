@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { View, Text, Pressable, Image, ScrollView, StyleSheet } from "react-native";
+import { NEARBY_OPTIONS } from "@/components/neighbourhood";
 import type { Listing, ListingInput, PropertyType, UnitType } from "@/lib/listings";
 import { radius, spacing } from "@/constants/theme";
 import { useTheme, type Theme } from "@/lib/theme-context";
@@ -51,6 +52,8 @@ export function ListingForm({
   const [amenities, setAmenities] = useState<string[]>(initial?.amenities ?? []);
   const [propertyType, setPropertyType] = useState<PropertyType>(initial?.property_type ?? "home");
   const [unitType, setUnitType] = useState<UnitType | null>(initial?.unit_type ?? null);
+  const [nearby, setNearby] = useState<string[]>(initial?.nearby ?? []);
+  const [note, setNote] = useState(initial?.neighbourhood_note ?? "");
 
   function toggleAmenity(a: string) {
     setAmenities((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
@@ -69,6 +72,8 @@ export function ListingForm({
       photos,
       property_type: propertyType,
       unit_type: propertyType === "home" ? unitType : null,
+      nearby,
+      neighbourhood_note: note.trim() || null,
     });
   }
 
@@ -127,6 +132,20 @@ export function ListingForm({
           </Pressable>
         ))}
       </View>
+
+      <Text style={styles.label}>Nearby</Text>
+      <View style={styles.amenityRow}>
+        {NEARBY_OPTIONS.map((o) => (
+          <Pressable
+            key={o.key}
+            style={[styles.chip, nearby.includes(o.key) && styles.chipSelected]}
+            onPress={() => setNearby((prev) => (prev.includes(o.key) ? prev.filter((x) => x !== o.key) : [...prev, o.key]))}
+          >
+            <Text style={nearby.includes(o.key) ? styles.chipTextSelected : styles.chipText}>{o.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Input placeholder="Neighbourhood note (optional), e.g. 5 min walk to the market" value={note} onChangeText={setNote} maxLength={200} multiline />
 
       <Text style={styles.label}>Photos</Text>
       <View style={styles.photoRow}>

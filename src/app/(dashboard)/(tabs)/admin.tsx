@@ -12,9 +12,12 @@ import { useTheme, type Theme } from "@/lib/theme-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
+import { fetchBoostStats, fetchTopListings, fetchModerationLog, MODERATION_LABEL, type BoostStats, type TopListing, type ModerationEntry } from "@/lib/admin";
+import { timeAgo } from "@/lib/inbox";
+import { fetchReviewsForAdmin, setReviewHidden, type AdminReview } from "@/lib/reviews";
 import { openIdDocument, setIdStatus, ID_STATUS_LABEL } from "@/lib/verification";
 
-type AdminView = "listings" | "reports" | "landlords";
+type AdminView = "listings" | "reports" | "landlords" | "reviews" | "activity";
 
 export default function Admin() {
   const theme = useTheme();
@@ -24,7 +27,11 @@ export default function Admin() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [landlords, setLandlords] = useState<Profile[]>([]);
+  const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [boost, setBoost] = useState<BoostStats | null>(null);
+  const [top, setTop] = useState<TopListing[]>([]);
+  const [log, setLog] = useState<ModerationEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -38,10 +45,17 @@ export default function Admin() {
           ? fetchListingsForAdmin("pending").then(setListings)
           : view === "reports"
             ? fetchReports("open").then(setReports)
-            : fetchLandlords().then(setLandlords),
+            : view === "reviews"
+              ? fetchReviewsForAdmin().then(setReviews)
+              : view === "activity"
+                ? fetchModerationLog().then(setLog)
+                : fetchLandlords().then(setLandlords),
         fetchAdminStats(),
       ]);
       setStats(statsResult);
+      // insights are a bonus: never let a failure here hide the review queue
+      fetchBoostStats().then(setBoost).catch(() => {});
+      fetchTopListings().then(setTop).catch(() => {});
     } catch (err) {
       console.error("admin load failed", err);
       setError((err as Error)?.message ?? "Couldn't load data.");
@@ -85,6 +99,18 @@ export default function Admin() {
       setReports((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
       console.error("updateReportStatus failed", err);
+      Alert.alert("Couldn't update", "Please try again.");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function handleToggleReview(id: string, hidden: boolean) {
+    setUpdatingId(id);
+    try {
+      await setReviewHidden(id, hidden);
+      setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, hidden } : r)));
+    } catch {
       Alert.alert("Couldn't update", "Please try again.");
     } finally {
       setUpdatingId(null);
@@ -195,6 +221,38 @@ export default function Admin() {
               centerLabelComponent={() => <Text style={styles.gaugeCenterText}>{verifiedPct}%</Text>}
             />
           </View>
+
+          {boost && (
+            <View style={styles.widgetRow}>
+              <View style={styles.widgetCard}>
+                <Text style={styles.widgetLabel}>Boost revenue</Text>
+                <Text style={styles.widgetValue}>${boost.totalRevenue.toLocaleString()}</Text>
+                <Text style={styles.widgetLabel}>${boost.monthRevenue.toLocaleString()} this month</Text>
+              </View>
+              <View style={styles.widgetCard}>
+                <Text style={styles.widgetLabel}>Active boosts</Text>
+                <Text style={styles.widgetValue}>{boost.activeCount}</Text>
+                <Text style={styles.widgetLabel}>{boost.successfulCount} sold in total</Text>
+              </View>
+            </View>
+          )}
+
+          {top.length > 0 && (
+            <View style={styles.chartCard}>
+              <Text style={styles.chartTitle}>Top listings · last 30 days</Text>
+              {top.map((t, i) => (
+                <View key={t.listing_id} style={styles.topRow}>
+                  <Text style={styles.topRank}>{i + 1}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.title} numberOfLines={1}>{t.title}</Text>
+                    <Text style={styles.subtitle}>
+                      {t.views} views · {t.contacts} contacts · {t.favorites} saves
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
         </>
       )}
 
@@ -203,6 +261,8 @@ export default function Admin() {
         <Button label="Listings" variant={view === "listings" ? "primary" : "outline"} onPress={() => setView("listings")} style={styles.toggleButton} />
         <Button label="Reports" variant={view === "reports" ? "primary" : "outline"} onPress={() => setView("reports")} style={styles.toggleButton} />
         <Button label="Landlords" variant={view === "landlords" ? "primary" : "outline"} onPress={() => setView("landlords")} style={styles.toggleButton} />
+        <Button label="Reviews" variant={view === "reviews" ? "primary" : "outline"} onPress={() => setView("reviews")} style={styles.toggleButton} />
+        <Button label="Activity" variant={view === "activity" ? "primary" : "outline"} onPress={() => setView("activity")} style={styles.toggleButton} />
       </View>
 
       {error && <Text style={styles.error}>{error}</Text>}
@@ -244,6 +304,58 @@ export default function Admin() {
                     variant="outline"
                     color={item.suspended ? undefined : colors.danger}
                     onPress={() => handleToggleSuspend(item.id, !item.suspended)}
+                    style={styles.actionButton}
+                  />
+                </View>
+              </View>
+            )}
+          />
+        </>
+      ) : view === "activity" ? (
+        <>
+          {!loading && !error && log.length === 0 && <Text style={styles.empty}>No moderation activity yet.</Text>}
+          <FlatList
+            data={log}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.list}
+            ListHeaderComponent={header}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+            renderItem={({ item }) => (
+              <View style={styles.card}>
+                <Text style={styles.title}>{MODERATION_LABEL[item.action] ?? item.action}</Text>
+                {item.detail ? <Text style={styles.body} numberOfLines={2}>{item.detail}</Text> : null}
+                <Text style={styles.subtitle}>
+                  {item.actor_name ?? "Admin"} · {timeAgo(item.created_at)}
+                </Text>
+              </View>
+            )}
+          />
+        </>
+      ) : view === "reviews" ? (
+        <>
+          {!loading && !error && reviews.length === 0 && <Text style={styles.empty}>No reviews yet.</Text>}
+          <FlatList
+            data={reviews}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.list}
+            ListHeaderComponent={header}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+            renderItem={({ item }) => (
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.title} numberOfLines={1}>
+                    {"★".repeat(item.rating)}{"☆".repeat(5 - item.rating)} · {item.listings?.title ?? "Listing"}
+                  </Text>
+                  {item.hidden && <Badge label="Hidden" tone="muted" />}
+                </View>
+                {item.comment ? <Text style={styles.body}>{item.comment}</Text> : null}
+                <View style={styles.actionRow}>
+                  <Button
+                    label={item.hidden ? "Unhide" : "Hide"}
+                    variant="outline"
+                    color={item.hidden ? undefined : colors.danger}
+                    loading={updatingId === item.id}
+                    onPress={() => handleToggleReview(item.id, !item.hidden)}
                     style={styles.actionButton}
                   />
                 </View>
@@ -349,8 +461,10 @@ const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
   },
   gaugeCenterText: { ...typography.subheading },
   sectionTitle: { ...typography.heading, paddingHorizontal: spacing.lg, marginTop: spacing.xl },
-  toggleRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.sm },
-  toggleButton: { flex: 1 },
+  toggleRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.sm },
+  toggleButton: { flexGrow: 1, minWidth: 96 },
+  topRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.xs },
+  topRank: { ...typography.heading, width: 22, color: colors.primary },
   empty: { ...typography.body, textAlign: "center", color: colors.textMuted, marginTop: 40 },
   error: { ...typography.body, textAlign: "center", color: colors.danger, margin: spacing.lg },
   list: { paddingBottom: TAB_BAR_SPACE, gap: spacing.md },

@@ -7,7 +7,7 @@ import { useTheme, type Theme } from "@/lib/theme-context";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-export function ReportListingForm({ listingId, deviceId }: { listingId: string; deviceId: string }) {
+export function ReportListingForm({ listingId, deviceId, defaultOpen = false }: { listingId: string; deviceId: string; defaultOpen?: boolean }) {
   const theme = useTheme();
   const { colors } = theme;
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -16,7 +16,7 @@ export function ReportListingForm({ listingId, deviceId }: { listingId: string; 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   async function handleSubmit() {
     if (!reason.trim()) {

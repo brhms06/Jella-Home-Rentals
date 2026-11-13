@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode, useMemo } from "react";
-import { View, Text, Image, ScrollView, Pressable, Share, StyleSheet, Linking, AppState, Alert, Platform, useWindowDimensions } from "react-native";
+import { View, Text, Image, ScrollView, Pressable, Share, StyleSheet, Linking, AppState, Alert, Platform, Modal, KeyboardAvoidingView, useWindowDimensions } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import * as ExpoLinking from "expo-linking";
-import { useNavigation, usePreventRemove } from "expo-router";
+import { router, useNavigation, usePreventRemove } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import {
   preventScreenCaptureAsync,
@@ -22,6 +23,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DetailTopBar } from "@/components/detail-top-bar";
 import { ListingRow } from "@/components/listing-row";
+import { ListingScene, AMENITY_ICONS, amenityLabel, type SceneTile } from "@/components/listing-scene";
+import { ReportListingForm } from "@/components/report-listing-form";
+import { CompareModal } from "@/components/compare-modal";
+import { fetchFavoriteIds, addFavorite, removeFavorite, fetchMyFavoriteListings } from "@/lib/favorites";
+import type { PublicListing } from "@/lib/listings";
+import { fetchPriceDrops } from "@/lib/price-drops";
+import { Neighbourhood } from "@/components/neighbourhood";
 
 const UNLOCK_PRICE_LABEL = "500 XAF";
 const DESKTOP_BREAKPOINT = 900;
@@ -34,18 +42,6 @@ function ShareButton({ id, title, color, style }: { id: string; title: string; c
       <Ionicons name="share-outline" size={22} color={color} />
     </Pressable>
   );
-}
-
-const AMENITY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  wifi: "wifi-outline",
-  parking: "car-outline",
-  laundry: "shirt-outline",
-  furnished: "cube-outline",
-  pets_allowed: "paw-outline",
-};
-
-function amenityLabel(a: string) {
-  return a.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 }
 
 export function ListingDetail({
@@ -76,6 +72,18 @@ export function ListingDetail({
   const [revealed, setRevealed] = useState(false);
   const navigation = useNavigation();
   const consumedRef = useRef(false);
+  const [sheet, setSheet] = useState<"unlock" | "viewing" | "report" | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [compareWith, setCompareWith] = useState<PublicListing[] | null>(null);
+  const [oldPrice, setOldPrice] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetchPriceDrops([listing.id]).then((m) => setOldPrice(m.get(listing.id)?.previous_price ?? null)).catch(() => {});
+  }, [listing.id]);
+
+  useEffect(() => {
+    fetchFavoriteIds(deviceId).then((ids) => setSaved(ids.has(listing.id))).catch(() => {});
+  }, [deviceId, listing.id]);
 
   // A paid unlock is single-use: the instant it's revealed, mark it consumed
   // server-side so the paywall returns next time this listing is opened.
@@ -301,6 +309,7 @@ export function ListingDetail({
                 </>
               )}
 
+              <Neighbourhood nearby={listing.nearby ?? []} note={listing.neighbourhood_note} />
               <View style={styles.divider} />
               <HostedByBlock listing={listing} />
 
@@ -332,86 +341,103 @@ export function ListingDetail({
     );
   }
 
-  const photoWidth = width - spacing.xl * 2;
-  const location =
-    (revealed && listing.address ? `${listing.address}, ` : "") + (listing.city ?? "") ||
-    "Location available after unlock";
   const availability = availabilityText(listing);
+  const location =
+    (revealed && listing.address ? `${listing.address}, ` : "") + (listing.city ?? "") || "Location available after unlock";
+  const unitLabel = listing.unit_type ? amenityLabel(listing.unit_type) : amenityLabel(listing.property_type);
+  const facts = `${listing.bedrooms ?? "—"} ${listing.bedrooms === 1 ? "Bed" : "Beds"} · ${listing.bathrooms ?? "—"} ${listing.bathrooms === 1 ? "Bath" : "Baths"} · ${unitLabel}`;
+
+  async function toggleSaved() {
+    const next = !saved;
+    setSaved(next);
+    try {
+      await (next ? addFavorite(deviceId, listing.id) : removeFavorite(deviceId, listing.id));
+    } catch {
+      setSaved(!next);
+    }
+  }
+
+  async function openCompare() {
+    try {
+      const others = (await fetchMyFavoriteListings(deviceId)).filter((l) => l.id !== listing.id).slice(0, 2);
+      if (others.length === 0) {
+        Alert.alert("Nothing to compare yet", "Save another listing first, then compare it with this one.");
+        return;
+      }
+      setCompareWith([listing as unknown as PublicListing, ...others]);
+    } catch {
+      Alert.alert("Couldn't load your saved listings.");
+    }
+  }
+
+  function openMap() {
+    if (!revealed || !(listing.lat || listing.address)) {
+      setSheet("unlock");
+      return;
+    }
+    const q = listing.lat && listing.lng ? `${listing.lat},${listing.lng}` : encodeURIComponent(`${listing.address}, ${listing.city ?? ""}`);
+    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`).catch(() => {});
+  }
+
+  const tiles: SceneTile[] = [
+    { icon: "share-social-outline", label: "Share", onPress: () => Share.share({ message: `${listing.title} on Jella`, url: ExpoLinking.createURL(`/listing/${listing.id}`) }).catch(() => {}) },
+    { icon: saved ? "heart" : "heart-outline", label: saved ? "Saved" : "Save", onPress: toggleSaved, active: saved },
+    { icon: "git-compare-outline", label: "Compare", onPress: openCompare },
+    { icon: revealed ? "map-outline" : "lock-closed-outline", label: "Map", onPress: openMap },
+    { icon: "flag-outline", label: "Report", onPress: () => setSheet("report") },
+  ];
+
+  const primaryLabel = listing.unlocked && revealed ? "WhatsApp" : listing.unlocked ? "Continue" : "Unlock contact";
 
   return (
-    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.container}>
-      {listing.photos.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={photoWidth + spacing.sm}
-          decelerationRate="fast"
-          style={styles.photoRow}
-        >
-          {listing.photos.map((url) => (
-            <Image key={url} source={{ uri: url }} style={[styles.photo, { width: photoWidth, height: photoWidth * 0.72 }]} />
-          ))}
-        </ScrollView>
-      )}
+    <>
+      <ListingScene
+        photos={listing.photos}
+        title={listing.title}
+        price={listing.price}
+        facts={facts}
+        location={location}
+        badges={
+          <>
+            {oldPrice !== null && <Badge label={`Price dropped from $${oldPrice}`} tone="success" />}
+            {listing.owner_verified && <Badge label="Verified landlord" tone="success" />}
+            {availability && <Badge label={availability} tone="muted" />}
+          </>
+        }
+        tiles={tiles}
+        description={listing.description}
+        amenities={listing.amenities}
+        secondary={{ label: "Request viewing", onPress: () => setSheet("viewing") }}
+        primary={{ label: primaryLabel, onPress: () => setSheet("unlock") }}
+        onBack={() => (router.canGoBack() ? router.back() : router.replace("/(browse)/(tabs)"))}
+      >
+        <Neighbourhood nearby={listing.nearby ?? []} note={listing.neighbourhood_note} />
+        <HostedByBlock listing={listing} />
+        <ListingReviews listingId={listing.id} deviceId={deviceId} />
+      </ListingScene>
 
-      <View style={styles.titleRow}>
-        <Text style={[styles.title, { flex: 1 }]}>{listing.title}</Text>
-        <ShareButton id={listing.id} title={listing.title} color={colors.text} style={styles.shareBtn} />
-      </View>
+      <RequestViewing listingId={listing.id} deviceId={deviceId} visible={sheet === "viewing"} onVisibleChange={(v) => setSheet(v ? "viewing" : null)} />
 
-      <View style={styles.badgeRow}>
-        {listing.owner_verified && <Badge label="Verified landlord" tone="success" />}
-        {availability && <Badge label={availability} tone="muted" />}
-      </View>
-
-      <Text style={styles.price}>
-        ${listing.price}
-        <Text style={styles.priceUnit}>/mo</Text>
-      </Text>
-
-      <View style={styles.locationRow}>
-        <Ionicons name="location-outline" size={16} color={colors.textMuted} />
-        <Text style={styles.subtitle}>{location}</Text>
-      </View>
-
-      <View style={styles.factRow}>
-        <View style={styles.fact}>
-          <Ionicons name="bed-outline" size={18} color={colors.text} />
-          <Text style={styles.factText}>{listing.bedrooms ?? "—"} bed</Text>
-        </View>
-        <View style={styles.fact}>
-          <Ionicons name="water-outline" size={18} color={colors.text} />
-          <Text style={styles.factText}>{listing.bathrooms ?? "—"} bath</Text>
-        </View>
-      </View>
-
-      {listing.description ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionHeading}>About this place</Text>
-          <Text style={styles.description}>{listing.description}</Text>
-        </View>
-      ) : null}
-
-      {listing.amenities.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionHeading}>What this place offers</Text>
-          <View style={styles.chipWrap}>
-            {listing.amenities.map((a) => (
-              <View key={a} style={styles.amenityChip}>
-                <Ionicons name={AMENITY_ICONS[a] ?? "checkmark-circle-outline"} size={16} color={colors.text} />
-                <Text style={styles.amenityChipText}>{amenityLabel(a)}</Text>
+      <Modal visible={sheet === "unlock" || sheet === "report"} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSheet(null)}>
+        <SafeAreaProvider>
+          <SafeAreaView style={styles.sheetSafe}>
+            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+              <View style={styles.sheetHeader}>
+                <Text style={styles.sheetTitle}>{sheet === "report" ? "Report this listing" : "Contact & location"}</Text>
+                <Pressable onPress={() => setSheet(null)} hitSlop={8} accessibilityLabel="Close">
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </Pressable>
               </View>
-            ))}
-          </View>
-        </View>
-      )}
+              <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
+                {sheet === "report" ? <ReportListingForm listingId={listing.id} deviceId={deviceId} defaultOpen /> : actionSection}
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </SafeAreaView>
+        </SafeAreaProvider>
+      </Modal>
 
-      <View style={styles.actionCard}>{actionSection}</View>
-
-      <RequestViewing listingId={listing.id} deviceId={deviceId} />
-      <ListingReviews listingId={listing.id} deviceId={deviceId} />
-      {reportSlot}
-    </ScrollView>
+      {compareWith && <CompareModal listings={compareWith} onClose={() => setCompareWith(null)} />}
+    </>
   );
 }
 
@@ -476,6 +502,10 @@ const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
   amenityRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, width: "50%" },
   amenityLabel: { ...typography.body },
 
+  sheetSafe: { flex: 1, backgroundColor: colors.background },
+  sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: spacing.lg },
+  sheetTitle: { ...typography.heading },
+  sheetBody: { padding: spacing.lg, gap: spacing.sm },
   hostRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   hostAvatar: {
     width: 48,

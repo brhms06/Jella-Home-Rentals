@@ -5,6 +5,7 @@ import { Link, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { fetchMyFavoriteListings, removeFavorite } from "@/lib/favorites";
 import { getDeviceId } from "@/lib/device";
+import { fetchPriceDrops, markDropsSeen, type PriceDrop } from "@/lib/price-drops";
 import type { PublicListing } from "@/lib/listings";
 import { spacing } from "@/constants/theme";
 import { useTheme, type Theme } from "@/lib/theme-context";
@@ -25,6 +26,7 @@ export default function Favorites() {
   const [comparing, setComparing] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
   const [showCompare, setShowCompare] = useState(false);
+  const [drops, setDrops] = useState<Map<string, PriceDrop>>(new Map());
 
   useEffect(() => {
     getDeviceId().then(setDeviceId);
@@ -36,7 +38,14 @@ export default function Favorites() {
       let cancelled = false;
       setLoading(true);
       fetchMyFavoriteListings(deviceId)
-        .then((data) => !cancelled && setListings(data))
+        .then(async (data) => {
+          if (cancelled) return;
+          setListings(data);
+          const d = await fetchPriceDrops(data.map((l) => l.id)).catch(() => new Map<string, PriceDrop>());
+          if (cancelled) return;
+          setDrops(d);
+          markDropsSeen(d); // opening the tab counts as seeing them; the labels stay visible below
+        })
         .finally(() => !cancelled && setLoading(false));
       return () => {
         cancelled = true;
@@ -112,11 +121,21 @@ export default function Favorites() {
               <ListingCard listing={item} isFavorite onToggleFavorite={() => togglePick(item.id)} />
             </Pressable>
           ) : (
-            <Link href={{ pathname: "/(browse)/listing/[id]", params: { id: item.id } }} asChild>
-              <Pressable>
-                <ListingCard listing={item} isFavorite onToggleFavorite={() => handleRemove(item.id)} />
-              </Pressable>
-            </Link>
+            <View>
+              {drops.has(item.id) && (
+                <View style={styles.drop}>
+                  <Ionicons name="trending-down" size={14} color={colors.success} />
+                  <Text style={styles.dropText}>
+                    Price dropped ${drops.get(item.id)!.previous_price} → ${drops.get(item.id)!.price}
+                  </Text>
+                </View>
+              )}
+              <Link href={{ pathname: "/(browse)/listing/[id]", params: { id: item.id } }} asChild>
+                <Pressable>
+                  <ListingCard listing={item} isFavorite onToggleFavorite={() => handleRemove(item.id)} />
+                </Pressable>
+              </Link>
+            </View>
           )
         }
       />
@@ -133,5 +152,7 @@ const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
   compareLink: { color: colors.primary, fontWeight: "600" },
   compareGo: { backgroundColor: colors.primary, borderRadius: 999, paddingVertical: 8, paddingHorizontal: spacing.lg },
   compareGoText: { color: colors.onPrimary, fontWeight: "700" },
+  drop: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6, marginLeft: 4 },
+  dropText: { fontSize: 13, fontWeight: "700", color: colors.success },
   picked: { borderWidth: 2, borderColor: colors.primary, borderRadius: 20 },
 });

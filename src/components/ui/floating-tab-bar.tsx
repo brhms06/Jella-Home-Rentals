@@ -49,6 +49,11 @@ export function FloatingTabBar({ state, descriptors, emitter, navigateToTab, ins
             >
               <View style={[styles.item, focused && { backgroundColor: chip }]}>
                 {options.tabBarIcon?.({ focused, color, size: 22 })}
+                {options.tabBarBadge ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{options.tabBarBadge}</Text>
+                  </View>
+                ) : null}
                 {focused && (
                   <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(100)}>
                     <Text style={[styles.label, { color }]} numberOfLines={1} adjustsFontSizeToFit>
@@ -97,5 +102,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: "hidden",
   },
+  badge: { position: "absolute", top: 3, right: 8, minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 4, backgroundColor: "#E5484D", alignItems: "center", justifyContent: "center" },
+  badgeText: { color: "#fff", fontSize: 10, fontWeight: "700" },
   label: { fontSize: 14, fontWeight: "600" },
 });

@@ -91,3 +91,41 @@ export async function fetchAdminStats(): Promise<AdminStats> {
     revenueSeries: rows.map((r) => ({ month: r.month_label, value: r.month_revenue_series })),
   };
 }
+
+export type BoostStats = { totalRevenue: number; monthRevenue: number; successfulCount: number; activeCount: number };
+export type TopListing = { listing_id: string; title: string; city: string | null; views: number; contacts: number; favorites: number };
+export type ModerationEntry = { id: string; action: string; detail: string | null; actor_name: string | null; created_at: string };
+
+export async function fetchBoostStats(): Promise<BoostStats> {
+  const { data, error } = await supabase.rpc("admin_boost_stats").single();
+  if (error) throw error;
+  const r = data as { total_revenue: number; month_revenue: number; successful_count: number; active_count: number };
+  return { totalRevenue: Number(r.total_revenue), monthRevenue: Number(r.month_revenue), successfulCount: Number(r.successful_count), activeCount: Number(r.active_count) };
+}
+
+export async function fetchTopListings(days = 30): Promise<TopListing[]> {
+  const { data, error } = await supabase.rpc("admin_top_listings", { p_days: days });
+  if (error) throw error;
+  return (data as TopListing[]).map((r) => ({ ...r, views: Number(r.views), contacts: Number(r.contacts), favorites: Number(r.favorites) }));
+}
+
+export async function fetchModerationLog(): Promise<ModerationEntry[]> {
+  const { data, error } = await supabase.rpc("admin_moderation_log", { p_limit: 40 });
+  if (error) throw error;
+  return data as ModerationEntry[];
+}
+
+export const MODERATION_LABEL: Record<string, string> = {
+  listing_verified: "Verified a listing",
+  listing_rejected: "Rejected a listing",
+  listing_suspended: "Suspended a listing",
+  listing_pending: "Reset a listing to pending",
+  report_reviewed: "Marked a report reviewed",
+  report_dismissed: "Dismissed a report",
+  review_hidden: "Hid a review",
+  review_unhidden: "Unhid a review",
+  landlord_suspended: "Suspended a landlord",
+  landlord_unsuspended: "Unsuspended a landlord",
+  id_verified: "Approved a landlord ID",
+  id_rejected: "Rejected a landlord ID",
+};

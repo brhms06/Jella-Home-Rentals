@@ -4,6 +4,7 @@ import { TabIcon } from "@/components/ui/tab-icon";
 import { FloatingTabBar } from "@/components/ui/floating-tab-bar";
 
 import { useTheme } from "@/lib/theme-context";
+import { useUnseenDropCount } from "@/lib/price-drops";
 
 const DESKTOP_BREAKPOINT = 900;
 
@@ -11,6 +12,7 @@ export default function BrowseTabsLayout() {
   const theme = useTheme();
   const { colors } = theme;
   const { width } = useWindowDimensions();
+  const drops = useUnseenDropCount();
   const isDesktop = Platform.OS === "web" && width >= DESKTOP_BREAKPOINT;
 
   return (
@@ -35,6 +37,7 @@ export default function BrowseTabsLayout() {
         name="favorites"
         options={{
           title: "Wishlists",
+          tabBarBadge: drops > 0 ? drops : undefined,
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="bookmarks" outline="bookmarks-outline" focused={focused} color={color as string} size={size} />
           ),

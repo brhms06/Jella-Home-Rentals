@@ -77,7 +77,7 @@ const GridCard = memo(function GridCard({ listing, isFavorite, onToggleFavorite 
         )}
         {listing.verification_status === "verified" && (
           <View style={gridStyles.verifiedBadge}>
-            <Text style={gridStyles.verifiedBadgeText}>Verified</Text>
+            <Text style={gridStyles.verifiedBadgeText}>{listing.is_boosted ? "Featured" : "Verified"}</Text>
           </View>
         )}
         {onToggleFavorite && (
@@ -141,7 +141,7 @@ const FeedCard = memo(function FeedCard({ listing, showStatus, isFavorite, onTog
 
         {(showStatus ? statusLabel(listing) ?? "Verified" : listing.verification_status === "verified" && "Verified") && (
           <View style={feedStyles.verifiedBadge}>
-            <Text style={feedStyles.verifiedBadgeText}>{showStatus ? statusLabel(listing) ?? "Verified" : "Verified"}</Text>
+            <Text style={feedStyles.verifiedBadgeText}>{showStatus ? statusLabel(listing) ?? "Verified" : listing.is_boosted ? "Featured" : "Verified"}</Text>
           </View>
         )}
         {onToggleFavorite && (

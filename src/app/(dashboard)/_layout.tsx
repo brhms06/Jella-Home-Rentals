@@ -5,7 +5,7 @@ export default function DashboardLayout() {
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="listing/new" options={{ title: "New listing" }} />
-      <Stack.Screen name="listing/[id]/index" options={{ title: "Listing" }} />
+      <Stack.Screen name="listing/[id]/index" options={{ title: "Listing", headerShown: false }} />
       <Stack.Screen name="listing/[id]/edit" options={{ title: "Edit listing" }} />
     </Stack>
   );

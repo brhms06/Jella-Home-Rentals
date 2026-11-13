@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
-import { View, StyleSheet } from "react-native";
-import { type Href } from "expo-router";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+import { router, type Href } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { fetchListings, DEFAULT_CITY, type PropertyType } from "@/lib/listings";
-import { spacing } from "@/constants/theme";
+import { spacing, radius } from "@/constants/theme";
 import { useTheme, type Theme } from "@/lib/theme-context";
 import { ListingRow } from "@/components/listing-row";
 import { RecentlyViewedRow } from "@/components/recently-viewed-row";
@@ -45,6 +46,16 @@ export function HomeFeed({
 
   return (
     <View style={styles.feed}>
+      <Pressable style={styles.discover} onPress={() => router.push("/(browse)/discover")} accessibilityRole="button">
+        <View style={styles.discoverIcon}>
+          <Ionicons name="layers-outline" size={22} color={theme.colors.onPrimary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.discoverTitle}>Discover homes</Text>
+          <Text style={styles.discoverSub}>Swipe right to save, left to skip</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
+      </Pressable>
       <RecentlyViewedRow getHref={getHref} />
       <ListingRow
         getHref={getHref}
@@ -88,6 +99,20 @@ export function HomeFeed({
   );
 }
 
-const makeStyles = ({  }: Theme) => StyleSheet.create({
+const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
   feed: { gap: spacing.xl },
+  discover: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginHorizontal: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  discoverIcon: { width: 44, height: 44, borderRadius: radius.pill, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
+  discoverTitle: { ...typography.subheading },
+  discoverSub: { ...typography.caption },
 });

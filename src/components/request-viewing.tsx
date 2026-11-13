@@ -17,12 +17,16 @@ function Chip({ label, selected, onPress, styles }: { label: string; selected: b
 }
 
 // "Request a viewing" button + sheet. Sends a day + time slot to the landlord (no phone number shared).
-export function RequestViewing({ listingId, deviceId }: { listingId: string; deviceId: string }) {
+// Uncontrolled by default (renders its own button); pass `visible` + `onVisibleChange` to drive it from elsewhere.
+export function RequestViewing({ listingId, deviceId, visible, onVisibleChange }: { listingId: string; deviceId: string; visible?: boolean; onVisibleChange?: (v: boolean) => void }) {
   const theme = useTheme();
   const { colors } = theme;
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const days = useMemo(() => nextDays(7), []);
-  const [open, setOpen] = useState(false);
+  const [innerOpen, setInnerOpen] = useState(false);
+  const controlled = visible !== undefined;
+  const open = controlled ? visible : innerOpen;
+  const setOpen = (v: boolean) => (controlled ? onVisibleChange?.(v) : setInnerOpen(v));
   const [name, setName] = useState("");
   const [date, setDate] = useState(days[1].iso);
   const [slot, setSlot] = useState<Slot>("morning");
@@ -57,7 +61,7 @@ export function RequestViewing({ listingId, deviceId }: { listingId: string; dev
 
   return (
     <>
-      <Button label="Request a viewing" variant="outline" onPress={() => setOpen(true)} />
+      {!controlled && <Button label="Request a viewing" variant="outline" onPress={() => setOpen(true)} />}
       <Modal visible={open} animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
         <SafeAreaProvider>
         <SafeAreaView style={styles.safe}>

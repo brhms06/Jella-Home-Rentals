@@ -28,3 +28,21 @@ export async function submitReview(listingId: string, deviceId: string, rating: 
   });
   if (error) throw error;
 }
+
+// ---- admin moderation (RLS: superadmin only) ----
+export type AdminReview = Review & { hidden: boolean; listing_id: string; listings: { title: string } | null };
+
+export async function fetchReviewsForAdmin() {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("id, rating, comment, created_at, hidden, listing_id, listings(title)")
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return data as unknown as AdminReview[];
+}
+
+export async function setReviewHidden(id: string, hidden: boolean) {
+  const { error } = await supabase.from("reviews").update({ hidden }).eq("id", id);
+  if (error) throw error;
+}

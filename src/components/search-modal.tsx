@@ -7,6 +7,7 @@ import { radius, spacing, cardShadow } from "@/constants/theme";
 import { useTheme, type Theme } from "@/lib/theme-context";
 import { CATEGORIES, type Category } from "@/components/browse-top-bar";
 import { SortControl } from "@/components/ui/sort-control";
+import { getSavedSearches, saveSearch, removeSavedSearch, type SavedSearch } from "@/lib/saved-searches";
 
 type Props = {
   visible: boolean;
@@ -79,6 +80,25 @@ export function SearchModal({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const destinations = useSuggestedDestinations();
+  const [saved, setSaved] = useState<SavedSearch[]>([]);
+  useEffect(() => {
+    if (visible) getSavedSearches().then(setSaved);
+  }, [visible]);
+
+  const current = { city, minPrice, maxPrice, minBedrooms, minBathrooms, unitType, category, sort };
+
+  function applySaved(x: SavedSearch) {
+    const t = x.state;
+    setCity(t.city);
+    setMinPrice(t.minPrice);
+    setMaxPrice(t.maxPrice);
+    setMinBedrooms(t.minBedrooms);
+    setMinBathrooms(t.minBathrooms);
+    setUnitType(t.unitType);
+    setCategory(t.category as Category);
+    setSort(t.sort as SortOption);
+    onClose();
+  }
 
   function selectDestination(destinationCity: string) {
     setCity(destinationCity);
@@ -138,6 +158,30 @@ export function SearchModal({
               <Ionicons name="options-outline" size={20} color={colors.text} />
             </Pressable>
           </View>
+
+          <Pressable style={styles.saveRow} onPress={async () => setSaved(await saveSearch(current))}>
+            <Ionicons name="bookmark-outline" size={18} color={colors.text} />
+            <Text style={styles.saveText}>Save this search</Text>
+          </Pressable>
+
+          {saved.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>Saved searches</Text>
+              {saved.map((x) => (
+                <View key={x.id} style={styles.destinationRow}>
+                  <Pressable style={styles.savedMain} onPress={() => applySaved(x)}>
+                    <View style={styles.destinationIcon}>
+                      <Ionicons name="bookmark" size={18} color={colors.text} />
+                    </View>
+                    <Text style={[styles.destinationCity, styles.savedLabel]} numberOfLines={1}>{x.label}</Text>
+                  </Pressable>
+                  <Pressable hitSlop={8} onPress={async () => setSaved(await removeSavedSearch(x.id))} accessibilityLabel="Remove saved search">
+                    <Ionicons name="close" size={18} color={colors.textMuted} />
+                  </Pressable>
+                </View>
+              ))}
+            </>
+          )}
 
           {destinations.length > 0 && (
             <>
@@ -296,6 +340,10 @@ const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
     justifyContent: "center",
   },
   destinationText: { flex: 1, gap: 2 },
+  saveRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  saveText: { fontSize: 15, fontWeight: "600", color: colors.text },
+  savedMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md },
+  savedLabel: { flex: 1 },
   destinationCity: { ...typography.subheading },
   destinationCaption: { ...typography.caption },
   footer: {
