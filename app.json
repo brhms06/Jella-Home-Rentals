@@ -37,6 +37,12 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1c93a5f7-f894-41f0-896c-6446a49bdae5"
+      }
+    },
+    "owner": "broomuhams"
   }
 }
