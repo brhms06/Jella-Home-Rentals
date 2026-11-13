@@ -22,6 +22,8 @@ Deno.serve(async (req: Request) => {
   const mapped = status === "CREATED" ? "pending" : (status.toLowerCase() as string);
 
   await supabase.from("listing_unlocks").update({ status: mapped }).eq("fapshi_trans_id", transId);
+  // Listing boosts share this webhook; a no-op when transId belongs to an unlock.
+  await supabase.rpc("apply_boost_status", { p_trans_id: transId, p_status: mapped });
 
   return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } });
 });
