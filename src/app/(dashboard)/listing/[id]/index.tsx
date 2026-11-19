@@ -13,6 +13,8 @@ import { BoostListing } from "@/components/boost-listing";
 import { Neighbourhood } from "@/components/neighbourhood";
 import { LocationPreview } from "@/components/listing-location";
 import { ListingScene, type SceneTile } from "@/components/listing-scene";
+import { DetailSkeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 
 export default function ListingDetail() {
   const theme = useTheme();
@@ -22,16 +24,24 @@ export default function ListingDetail() {
   const { session } = useAuth();
   const [listing, setListing] = useState<Listing | null>(null);
   const [boostOpen, setBoostOpen] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       if (!session) return;
       let cancelled = false;
-      fetchMyListing(id, session.user.id).then((data) => !cancelled && setListing(data));
+      fetchMyListing(id, session.user.id)
+        .then((data) => {
+          if (cancelled) return;
+          setFailed(false);
+          setListing(data);
+        })
+        .catch(() => !cancelled && setFailed(true));
       return () => {
         cancelled = true;
       };
-    }, [id, session])
+    }, [id, session, retryKey])
   );
 
   async function handleToggleStatus() {
@@ -85,7 +95,20 @@ export default function ListingDetail() {
     ]);
   }
 
-  if (!listing) return null;
+  if (!listing) {
+    return failed ? (
+      <ErrorState
+        message="We couldn't load this listing."
+        onRetry={() => {
+          setFailed(false);
+          setRetryKey((k) => k + 1);
+        }}
+        secondary={{ label: "Go back", onPress: () => (router.canGoBack() ? router.back() : router.replace("/(dashboard)/(tabs)")) }}
+      />
+    ) : (
+      <DetailSkeleton />
+    );
+  }
 
   const boostable = listing.status === "active" && listing.verification_status === "verified";
   const unitLabel = (listing.unit_type ?? listing.property_type).replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());

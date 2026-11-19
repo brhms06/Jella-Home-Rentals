@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { View } from "react-native";
+import { registerForPush } from "@/lib/push";
 import { Tabs } from "expo-router";
 
 import { useTheme } from "@/lib/theme-context";
@@ -16,6 +18,10 @@ export default function DashboardTabsLayout() {
   const isAdmin = profile?.role === "superadmin";
   const isDesktop = useIsDesktop();
   const inboxCount = useInboxCount(!!profile);
+  const profileId = profile?.id;
+  useEffect(() => {
+    if (profileId) registerForPush();
+  }, [profileId]);
 
   const tabs = (
     <Tabs

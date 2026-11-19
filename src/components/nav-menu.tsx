@@ -3,7 +3,7 @@ import { View, Text, Pressable, Switch, Modal, StyleSheet } from "react-native";
 import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/lib/supabase";
+import { signOut } from "@/lib/push";
 import { radius, spacing, cardShadow } from "@/constants/theme";
 import { useTheme, type Theme } from "@/lib/theme-context";
 
@@ -95,7 +95,7 @@ function AdminMenu({ onNavigate }: { onNavigate: () => void }) {
         style={styles.menuRow}
         onPress={() => {
           onNavigate();
-          supabase.auth.signOut();
+          signOut();
         }}
       >
         <Ionicons name="log-out-outline" size={18} color={colors.danger} />

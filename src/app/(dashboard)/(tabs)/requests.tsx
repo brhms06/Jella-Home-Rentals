@@ -2,7 +2,8 @@ import { TAB_BAR_SPACE } from "@/components/ui/floating-tab-bar";
 import { useCallback, useMemo, useState } from "react";
 import { View, Text, FlatList, Pressable, RefreshControl, StyleSheet, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { ownerConversations, type OwnerConversation } from "@/lib/chat";
 import { fetchContactEvents, getSeenAt, markInboxSeen, timeAgo, type ContactEvent } from "@/lib/inbox";
 import { fetchOwnerRequests, respondToRequest, SLOT_LABEL, type OwnerRequest } from "@/lib/viewing-requests";
 import { radius, spacing, cardShadow } from "@/constants/theme";
@@ -10,12 +11,15 @@ import { useTheme, type Theme } from "@/lib/theme-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { RowSkeletonList } from "@/components/ui/skeleton";
 
 const prettyDate = (iso: string) =>
   new Date(iso + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
 
-type Filter = "all" | "requests" | "contacts";
+type Filter = "all" | "messages" | "requests" | "contacts";
 type Item =
+  | { kind: "chat"; key: string; at: number; data: OwnerConversation }
   | { kind: "request"; key: string; at: number; data: OwnerRequest }
   | { kind: "contact"; key: string; at: number; data: ContactEvent };
 
@@ -26,6 +30,7 @@ export default function Inbox() {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [requests, setRequests] = useState<OwnerRequest[]>([]);
   const [contacts, setContacts] = useState<ContactEvent[]>([]);
+  const [chats, setChats] = useState<OwnerConversation[]>([]);
   const [seenAt, setSeenAt] = useState(0);
   const [filter, setFilter] = useState<Filter>("all");
   const [loading, setLoading] = useState(true);
@@ -35,9 +40,10 @@ export default function Inbox() {
 
   const load = useCallback(async () => {
     try {
-      const [r, c, seen] = await Promise.all([fetchOwnerRequests(), fetchContactEvents(), getSeenAt()]);
+      const [r, c, seen, m] = await Promise.all([fetchOwnerRequests(), fetchContactEvents(), getSeenAt(), ownerConversations()]);
       setRequests(r);
       setContacts(c);
+      setChats(m);
       setSeenAt(seen); // read before marking seen so the "New" tags survive this visit
       setFailed(false);
       markInboxSeen();
@@ -67,8 +73,9 @@ export default function Inbox() {
 
   // pending requests first (they need an answer), then everything else newest-first
   const items: Item[] = [
-    ...(filter !== "contacts" ? requests.map((r) => ({ kind: "request" as const, key: `r${r.id}`, at: new Date(r.created_at).getTime(), data: r })) : []),
-    ...(filter !== "requests" ? contacts.map((c) => ({ kind: "contact" as const, key: `c${c.id}`, at: new Date(c.created_at).getTime(), data: c })) : []),
+    ...(filter === "all" || filter === "messages" ? chats.map((m) => ({ kind: "chat" as const, key: `m${m.id}`, at: new Date(m.last_message_at).getTime(), data: m })) : []),
+    ...(filter === "all" || filter === "requests" ? requests.map((r) => ({ kind: "request" as const, key: `r${r.id}`, at: new Date(r.created_at).getTime(), data: r })) : []),
+    ...(filter === "all" || filter === "contacts" ? contacts.map((c) => ({ kind: "contact" as const, key: `c${c.id}`, at: new Date(c.created_at).getTime(), data: c })) : []),
   ].sort((a, b) => {
     const pa = a.kind === "request" && a.data.status === "pending" ? 1 : 0;
     const pb = b.kind === "request" && b.data.status === "pending" ? 1 : 0;
@@ -79,15 +86,16 @@ export default function Inbox() {
     <View style={styles.container}>
       <Text style={styles.title}>Inbox</Text>
       <View style={styles.filters}>
-        {(["all", "requests", "contacts"] as Filter[]).map((f) => (
+        {(["all", "messages", "requests", "contacts"] as Filter[]).map((f) => (
           <Pressable key={f} onPress={() => setFilter(f)} style={[styles.filter, filter === f && styles.filterOn]}>
             <Text style={[styles.filterText, filter === f && styles.filterTextOn]}>{f[0].toUpperCase() + f.slice(1)}</Text>
           </Pressable>
         ))}
       </View>
-      {!loading && failed && <EmptyState icon="alert-circle-outline" message="Couldn't load your inbox." />}
+      {loading && items.length === 0 && <View style={styles.list}><RowSkeletonList /></View>}
+      {!loading && failed && <ErrorState message="Couldn't load your inbox." onRetry={() => { setLoading(true); load().finally(() => setLoading(false)); }} />}
       {!loading && !failed && items.length === 0 && (
-        <EmptyState icon="mail-outline" message="Nothing yet. Viewing requests and WhatsApp contacts will appear here." />
+        <EmptyState icon="mail-outline" message="Nothing yet. Messages, viewing requests and WhatsApp contacts will appear here." />
       )}
       <FlatList
         data={items}
@@ -104,6 +112,26 @@ export default function Inbox() {
           />
         }
         renderItem={({ item: entry }) => {
+          if (entry.kind === "chat") {
+            const m = entry.data;
+            return (
+              <Pressable
+                style={styles.card}
+                onPress={() => router.push({ pathname: "/(dashboard)/chat/[id]", params: { id: m.id, name: m.renter_name } })}
+              >
+                <View style={styles.rowTop}>
+                  <View style={styles.contactRow}>
+                    <Ionicons name="chatbubble-ellipses" size={20} color={colors.primary} />
+                    <Text style={styles.name} numberOfLines={1}>{m.renter_name}</Text>
+                  </View>
+                  {m.unread > 0 && <Badge label={`${m.unread} new`} tone="success" />}
+                </View>
+                <Text style={styles.listing} numberOfLines={1}>{m.listing_title}</Text>
+                <Text style={styles.when} numberOfLines={1}>{m.last_message}</Text>
+                <Text style={styles.listing}>{timeAgo(m.last_message_at)}</Text>
+              </Pressable>
+            );
+          }
           if (entry.kind === "contact") {
             const c = entry.data;
             return (

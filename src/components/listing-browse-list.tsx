@@ -15,6 +15,8 @@ import { BrowseTopBar, type Category } from "@/components/browse-top-bar";
 import { HomeFeed } from "@/components/home-feed";
 import { SearchModal } from "@/components/search-modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { SkeletonList } from "@/components/ui/skeleton";
 import { ExploreMap } from "@/components/explore-map";
 
 const GRID_GAP = spacing.lg;
@@ -29,6 +31,8 @@ export function ListingBrowseList({ getHref, deviceId }: { getHref: (id: string)
 
   const [listings, setListings] = useState<PublicListing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [city, setCity] = useState("");
   const [minPrice, setMinPrice] = useState("");
@@ -78,6 +82,13 @@ export function ListingBrowseList({ getHref, deviceId }: { getHref: (id: string)
   const hasActiveFilters =
     !!city.trim() || !!minPrice || !!maxPrice || !!minBedrooms || !!minBathrooms || !!unitType || category !== "all";
   const showFeed = !hasActiveFilters && !viewAll;
+  const listPlaceholder = loading ? (
+    <SkeletonList />
+  ) : failed ? (
+    <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />
+  ) : (
+    <EmptyState icon="search-outline" message="No listings match your search." />
+  );
 
   function handleSectionPress({ city: sectionCity, propertyType }: { city?: string; propertyType?: PropertyType }) {
     setCity(sectionCity ?? "");
@@ -111,15 +122,22 @@ export function ListingBrowseList({ getHref, deviceId }: { getHref: (id: string)
       let cancelled = false;
       setLoading(true);
       fetchListings(filters)
-        .then((data) => !cancelled && setListings(data))
-        .catch((err) => console.error("fetchListings failed:", err))
+        .then((data) => {
+          if (cancelled) return;
+          setFailed(false);
+          setListings(data);
+        })
+        .catch((err) => {
+          console.error("fetchListings failed:", err);
+          if (!cancelled) setFailed(true);
+        })
         .finally(() => !cancelled && setLoading(false));
       return () => {
         cancelled = true;
       };
       // filterKey captures the same values as `filters`; re-running on it (not the fresh object) avoids refetching every render
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filterKey, showFeed])
+    }, [filterKey, showFeed, retryKey])
   );
 
   useFocusEffect(
@@ -218,7 +236,7 @@ export function ListingBrowseList({ getHref, deviceId }: { getHref: (id: string)
             </View>
           ) : (
             <>
-              {!loading && listings.length === 0 && <EmptyState icon="search-outline" message="No listings match your search." />}
+              {listings.length === 0 && listPlaceholder}
               <View style={styles.grid}>
                 {listings.map((item) => (
                   <Link key={item.id} href={getHref(item.id)} asChild>
@@ -299,7 +317,7 @@ export function ListingBrowseList({ getHref, deviceId }: { getHref: (id: string)
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.list, { paddingTop: headerH + spacing.md }]}
         ListEmptyComponent={
-          !showFeed && !loading ? <EmptyState icon="search-outline" message="No listings match your search." /> : undefined
+          !showFeed ? listPlaceholder : undefined
         }
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         renderItem={renderMobileItem}

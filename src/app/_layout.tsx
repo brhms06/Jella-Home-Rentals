@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, ThemeProvider as NavThemeProvider, DefaultTheme } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -6,6 +7,8 @@ import { ThemeProvider, useTheme } from "@/lib/theme-context";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { WelcomeScreen } from "@/components/welcome-screen";
 import { AnimatedSplash } from "@/components/animated-splash";
+import { usePushTaps } from "@/lib/push";
+import { ErrorState } from "@/components/ui/error-state";
 
 // ponytail: always land on the public browse tabs, never a deep auth screen
 export const unstable_settings = { initialRouteName: "(browse)" };
@@ -24,6 +27,9 @@ function RootNavigator() {
     const t = setTimeout(() => setMinElapsed(true), 800);
     return () => clearTimeout(t);
   }, []);
+
+  const ready = minElapsed && hasOnboarded === true && !loading && !(session && !profile);
+  usePushTaps(ready);
 
   if (!minElapsed || hasOnboarded === null || loading || (session && !profile)) return <AnimatedSplash />;
 
@@ -57,6 +63,15 @@ function RootNavigator() {
       </Stack.Protected>
     </Stack>
     </NavThemeProvider>
+  );
+}
+
+// Last-resort screen if a render crashes, instead of a white screen / red box.
+export function ErrorBoundary({ retry }: { error: Error; retry: () => Promise<void> }) {
+  return (
+    <View style={{ flex: 1, justifyContent: "center", backgroundColor: "#F5F5F5" }}>
+      <ErrorState message="The app hit an unexpected problem. Please try again." onRetry={retry} />
+    </View>
   );
 }
 

@@ -34,6 +34,8 @@
         }
       ],
       "expo-web-browser",
+      "expo-notifications",
+      ["expo-local-authentication", { "faceIDPermission": "Jella uses Face ID to confirm your payments." }],
       [
         "expo-location",
         {

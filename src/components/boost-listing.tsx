@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, Alert } from "react-native";
 import { createBoost, isBoosted } from "@/lib/boost";
+import { confirmPayment } from "@/lib/biometric";
 import { fetchMyListing, type Listing } from "@/lib/listings";
 import { radius, spacing } from "@/constants/theme";
 import { useTheme, type Theme } from "@/lib/theme-context";
@@ -30,6 +31,7 @@ export function BoostListing({ listing, onBoosted }: { listing: Listing; onBoost
     }
     setBusy(true);
     try {
+      if (!(await confirmPayment("Confirm boost payment"))) return;
       await createBoost(listing.id, digits);
       setWaiting(true);
       for (let i = 0; i < POLL_TRIES && alive.current; i++) {

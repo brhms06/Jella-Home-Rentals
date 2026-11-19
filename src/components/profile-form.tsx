@@ -4,7 +4,7 @@ import { View, Text, ScrollView, Pressable, Animated, ActivityIndicator, StyleSh
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/lib/supabase";
+import { signOut } from "@/lib/push";
 import { fetchProfile, updateProfile, uploadAvatarPhoto } from "@/lib/profile";
 import { spacing, radius, cardShadow } from "@/constants/theme";
 import { useTheme, type Theme } from "@/lib/theme-context";
@@ -198,7 +198,7 @@ export function ProfileForm({ hint, showLogout }: { hint: string; showLogout?: b
         </View>
 
         <View style={[styles.group, { marginTop: spacing.xl }]}>
-          <SettingsRow {...row} first last danger icon="log-out" label="Log out" chevron={null} onPress={() => supabase.auth.signOut()} />
+          <SettingsRow {...row} first last danger icon="log-out" label="Log out" chevron={null} onPress={() => signOut()} />
         </View>
 
         <ChangePasswordModal
@@ -279,7 +279,7 @@ export function ProfileForm({ hint, showLogout }: { hint: string; showLogout?: b
             label="Log out"
             variant="text"
             color={colors.danger}
-            onPress={() => supabase.auth.signOut()}
+            onPress={() => signOut()}
             style={styles.logout}
           />
         )}

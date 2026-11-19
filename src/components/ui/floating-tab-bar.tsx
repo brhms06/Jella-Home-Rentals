@@ -7,6 +7,7 @@ import type { Tabs } from "expo-router";
 // ponytail: expo-router doesn't re-export BottomTabBarProps, so derive it from <Tabs tabBar>
 type BottomTabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0];
 import { useTheme } from "@/lib/theme-context";
+import { tap } from "@/lib/haptics";
 
 // Space for lists to reserve so content scrolls clear of the floating bar.
 export const TAB_BAR_SPACE = 104;
@@ -34,7 +35,10 @@ export function FloatingTabBar({ state, descriptors, emitter, navigateToTab, ins
 
           const onPress = () => {
             const event = emitter.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
-            if (!focused && !event.defaultPrevented) navigateToTab(route.key);
+            if (!focused && !event.defaultPrevented) {
+              tap();
+              navigateToTab(route.key);
+            }
           };
 
           return (

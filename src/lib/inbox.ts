@@ -3,6 +3,7 @@ import { AppState } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "./supabase";
 import { fetchOwnerRequests } from "./viewing-requests";
+import { ownerConversations } from "./chat";
 
 const SEEN_KEY = "inbox_seen_at";
 
@@ -33,8 +34,12 @@ export async function markInboxSeen() {
 
 // Needs-attention count: pending viewing requests (always) + contacts since the inbox was last opened.
 export async function fetchInboxCount() {
-  const [requests, contacts, seen] = await Promise.all([fetchOwnerRequests(), fetchContactEvents(), getSeenAt()]);
-  return requests.filter((r) => r.status === "pending").length + contacts.filter((c) => new Date(c.created_at).getTime() > seen).length;
+  const [requests, contacts, seen, chats] = await Promise.all([fetchOwnerRequests(), fetchContactEvents(), getSeenAt(), ownerConversations()]);
+  return (
+    requests.filter((r) => r.status === "pending").length +
+    contacts.filter((c) => new Date(c.created_at).getTime() > seen).length +
+    chats.reduce((n, c) => n + c.unread, 0)
+  );
 }
 
 export function useInboxCount(enabled: boolean) {

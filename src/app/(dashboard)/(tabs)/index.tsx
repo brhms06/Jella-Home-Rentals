@@ -12,6 +12,8 @@ import { useTheme, type Theme } from "@/lib/theme-context";
 import { ListingCard } from "@/components/listing-card";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { SkeletonList } from "@/components/ui/skeleton";
 import { InsightsStrip } from "@/components/insights-strip";
 
 const FILTERS: { value: ListingFilter; label: string }[] = [
@@ -36,6 +38,7 @@ export default function Dashboard() {
   const [inboxCount, setInboxCount] = useState(0);
   const [filter, setFilter] = useState<ListingFilter>("all");
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -50,13 +53,22 @@ export default function Dashboard() {
       let cancelled = false;
       setLoading(true);
       load()
-        .catch(() => {})
+        .then(() => !cancelled && setFailed(false))
+        .catch(() => !cancelled && setFailed(true))
         .finally(() => !cancelled && setLoading(false));
       return () => {
         cancelled = true;
       };
     }, [load])
   );
+
+  function retry() {
+    setLoading(true);
+    load()
+      .then(() => setFailed(false))
+      .catch(() => setFailed(true))
+      .finally(() => setLoading(false));
+  }
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -150,9 +162,13 @@ export default function Dashboard() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         ListHeaderComponent={header}
         ListEmptyComponent={
-          !loading ? (
+          loading ? (
+            <SkeletonList count={2} />
+          ) : failed ? (
+            <ErrorState onRetry={retry} />
+          ) : (
             <EmptyState message={listings.length === 0 ? "No listings yet. Add your first one." : "No listings in this view."} />
-          ) : undefined
+          )
         }
         renderItem={({ item }) => (
           <View style={styles.cardWrap}>

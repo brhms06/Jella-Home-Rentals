@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { fetchListing, type PublicListingDetail } from "@/lib/listings";
 import { getDeviceId } from "@/lib/device";
 import { addRecentId } from "@/lib/recent";
 import { logListingEvent } from "@/lib/analytics";
 import { ListingDetail } from "@/components/listing-detail";
 import { ReportListingForm } from "@/components/report-listing-form";
+import { DetailSkeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 
 export default function BrowseListingDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [listing, setListing] = useState<PublicListingDetail | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     getDeviceId().then(setDeviceId);
@@ -26,9 +29,12 @@ export default function BrowseListingDetail() {
     // background refetch (AppState listener, unlock-poll loop) would otherwise
     // silently re-mask it mid-session — keep the already-revealed data until
     // this screen genuinely remounts (navigate away and back, app relaunch).
-    fetchListing(id, deviceId).then((data) =>
-      setListing((prev) => (prev?.unlocked && !data.unlocked ? prev : data))
-    );
+    fetchListing(id, deviceId)
+      .then((data) => {
+        setFailed(false);
+        setListing((prev) => (prev?.unlocked && !data.unlocked ? prev : data));
+      })
+      .catch(() => setFailed(true)); // only shown while nothing has loaded; background refetch failures stay silent
   }, [id, deviceId]);
 
   useFocusEffect(
@@ -38,7 +44,20 @@ export default function BrowseListingDetail() {
     }, [load, id])
   );
 
-  if (!listing || !deviceId) return null;
+  if (!listing || !deviceId) {
+    return failed ? (
+      <ErrorState
+        message="We couldn't load this listing. It may have been removed, or your connection dropped."
+        onRetry={() => {
+          setFailed(false);
+          load();
+        }}
+        secondary={{ label: "Go back", onPress: () => (router.canGoBack() ? router.back() : router.replace("/(browse)/(tabs)")) }}
+      />
+    ) : (
+      <DetailSkeleton />
+    );
+  }
 
   return (
     <ListingDetail

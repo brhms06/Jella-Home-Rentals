@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { Link, usePathname } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { supabase } from "@/lib/supabase";
+import { signOut } from "@/lib/push";
 import { radius, spacing } from "@/constants/theme";
 import { useTheme, type Theme } from "@/lib/theme-context";
 
@@ -34,7 +34,7 @@ export function DashboardSidebar() {
         );
       })}
       <View style={{ flex: 1 }} />
-      <Pressable style={styles.row} onPress={() => supabase.auth.signOut()}>
+      <Pressable style={styles.row} onPress={() => signOut()}>
         <Ionicons name="log-out-outline" size={18} color={colors.danger} />
         <Text style={[styles.rowText, { color: colors.danger }]}>Logout</Text>
       </Pressable>

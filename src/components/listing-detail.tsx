@@ -3,7 +3,7 @@ import { xaf } from "@/lib/listings";
 import { View, Text, Image, ScrollView, Pressable, Share, StyleSheet, Linking, AppState, Alert, Platform, Modal, KeyboardAvoidingView, useWindowDimensions } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import * as ExpoLinking from "expo-linking";
-import { router, useNavigation, usePreventRemove } from "expo-router";
+import { router, usePreventRemove } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import {
   preventScreenCaptureAsync,
@@ -13,6 +13,10 @@ import {
   disableAppSwitcherProtectionAsync,
 } from "expo-screen-capture";
 import { createPayment } from "@/lib/payments";
+import { confirmPayment } from "@/lib/biometric";
+import { getSavedName, saveName, renterMessages, renterSend } from "@/lib/chat";
+import { ChatThread } from "@/components/chat-thread";
+import { registerForPush } from "@/lib/push";
 import { logListingEvent } from "@/lib/analytics";
 import { RequestViewing } from "@/components/request-viewing";
 import { ListingReviews } from "@/components/listing-reviews";
@@ -64,7 +68,7 @@ export function ListingDetail({
   const isDesktop = Platform.OS === "web" && width >= DESKTOP_BREAKPOINT;
 
   const [name, setName] = useState("");
-  const [message, setMessage] = useState("");
+  const [chatOpen, setChatOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [contactError, setContactError] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState(false);
@@ -72,12 +76,21 @@ export function ListingDetail({
   const [phone, setPhone] = useState("");
   const [awaitingApproval, setAwaitingApproval] = useState(false);
   const [revealed, setRevealed] = useState(false);
-  const navigation = useNavigation();
   const consumedRef = useRef(false);
   const [sheet, setSheet] = useState<"unlock" | "viewing" | "report" | "nav" | null>(null);
   const [saved, setSaved] = useState(false);
   const [compareWith, setCompareWith] = useState<PublicListing[] | null>(null);
   const [oldPrice, setOldPrice] = useState<number | null>(null);
+
+  // The renter's name is asked once; if we already have it, go straight to the chat.
+  useEffect(() => {
+    getSavedName().then((n) => {
+      if (n) {
+        setName(n);
+        setChatOpen(true);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     fetchPriceDrops([listing.id]).then((m) => setOldPrice(m.get(listing.id)?.previous_price ?? null)).catch(() => {});
@@ -96,13 +109,19 @@ export function ListingDetail({
     }
   }, [revealed, listing.id, deviceId]);
 
-  usePreventRemove(revealed, ({ data }) => {
+  // repeat() lifts the guard, then leaves; dispatching the action directly is blocked again (infinite "Leave?" loop).
+  usePreventRemove(revealed, ({ repeat }) => {
+    // Alert.alert is a no-op on web, which trapped people on this page.
+    if (Platform.OS === "web") {
+      if (window.confirm("Leave this listing? You've already used this unlock and will need to pay again to see the contact details.")) repeat();
+      return;
+    }
     Alert.alert(
       "Leave this listing?",
       "You've already used this unlock. Next time you view this listing you'll need to pay again to see the address and contact details.",
       [
         { text: "Stay", style: "cancel" },
-        { text: "Leave", style: "destructive", onPress: () => navigation.dispatch(data.action) },
+        { text: "Leave", style: "destructive", onPress: repeat },
       ]
     );
   });
@@ -148,11 +167,17 @@ export function ListingDetail({
   const phoneDigits = phone.replace(/\D/g, "");
   const phoneValid = phoneDigits.length >= 9;
 
-  async function handleContact() {
+  function startChat() {
     if (!name.trim()) {
       setContactError("Please enter your name.");
       return;
     }
+    setContactError(null);
+    saveName(name);
+    setChatOpen(true);
+  }
+
+  async function handleContact() {
     setContactError(null);
     setSending(true);
     try {
@@ -161,7 +186,7 @@ export function ListingDetail({
         return;
       }
       const digits = listing.owner_whatsapp_number.replace(/\D/g, "");
-      const text = `Hi, I'm ${name} and I'm interested in "${listing.title}". ${message}`;
+      const text = `Hi, I'm ${name} and I'm interested in "${listing.title}".`;
       const url = `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
       logListingEvent(listing.id, deviceId, "contact");
       await Linking.openURL(url);
@@ -180,6 +205,10 @@ export function ListingDetail({
     setUnlockError(null);
     setUnlocking(true);
     try {
+      if (!(await confirmPayment(`Confirm ${UNLOCK_PRICE_LABEL} payment`))) {
+        setUnlockError("Payment cancelled.");
+        return;
+      }
       await createPayment(listing.id, deviceId, phoneDigits);
       setAwaitingApproval(true);
     } catch {
@@ -205,24 +234,35 @@ export function ListingDetail({
       </View>
     ) : listing.unlocked ? (
       <>
-        <Text style={styles.contactHeading}>Contact landlord</Text>
-        <Input placeholder="Your name" value={name} onChangeText={setName} style={styles.inputSpacing} />
-        <Input
-          placeholder="Hi, I'm interested in this listing..."
-          value={message}
-          onChangeText={setMessage}
-          multiline
-          style={styles.inputSpacing}
-        />
+        <Text style={styles.contactHeading}>Message the landlord</Text>
+        {chatOpen ? (
+          <>
+            <Text style={styles.meta}>Chatting as {name}. You&apos;ll be notified here when they reply.</Text>
+            <ChatThread
+              me="renter"
+              maxHeight={320}
+              load={() => renterMessages(listing.id, deviceId)}
+              send={(body) => renterSend(listing.id, deviceId, name.trim(), body).then(() => void registerForPush(deviceId))}
+            />
+          </>
+        ) : (
+          <>
+            <Input placeholder="Your name" value={name} onChangeText={setName} style={styles.inputSpacing} />
+            <Button label="Start chat" onPress={startChat} style={styles.contactButton} />
+          </>
+        )}
         {contactError && <Text style={styles.error}>{contactError}</Text>}
-        <Button
-          label="Contact via WhatsApp"
-          loading={sending}
-          loadingLabel="Opening WhatsApp..."
-          color={colors.whatsapp}
-          onPress={handleContact}
-          style={styles.contactButton}
-        />
+        {name.trim() !== "" && (
+          <Button
+            label="Also on WhatsApp"
+            variant="outline"
+            loading={sending}
+            loadingLabel="Opening WhatsApp..."
+            color={colors.whatsapp}
+            onPress={handleContact}
+            style={styles.contactButton}
+          />
+        )}
       </>
     ) : (
       <View style={styles.paywall}>

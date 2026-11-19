@@ -13,6 +13,8 @@ import { useTheme, type Theme } from "@/lib/theme-context";
 import { ListingCard } from "@/components/listing-card";
 import { CompareModal } from "@/components/compare-modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 const MAX_COMPARE = 3;
 
@@ -23,6 +25,8 @@ export default function Favorites() {
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [listings, setListings] = useState<PublicListing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [comparing, setComparing] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
@@ -41,17 +45,19 @@ export default function Favorites() {
       fetchMyFavoriteListings(deviceId)
         .then(async (data) => {
           if (cancelled) return;
+          setFailed(false);
           setListings(data);
           const d = await fetchPriceDrops(data.map((l) => l.id)).catch(() => new Map<string, PriceDrop>());
           if (cancelled) return;
           setDrops(d);
           markDropsSeen(d); // opening the tab counts as seeing them; the labels stay visible below
         })
+        .catch(() => !cancelled && setFailed(true))
         .finally(() => !cancelled && setLoading(false));
       return () => {
         cancelled = true;
       };
-    }, [deviceId])
+    }, [deviceId, retryKey])
   );
 
   async function handleRefresh() {
@@ -110,7 +116,9 @@ export default function Favorites() {
       {showCompare && (
         <CompareModal listings={listings.filter((l) => picked.includes(l.id))} onClose={() => setShowCompare(false)} />
       )}
-      {!loading && listings.length === 0 && <EmptyState icon="heart-outline" message="No favorites yet. Tap the heart on a listing to save it." />}
+      {loading && listings.length === 0 && <View style={{ padding: spacing.lg }}><SkeletonList /></View>}
+      {!loading && failed && listings.length === 0 && <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />}
+      {!loading && !failed && listings.length === 0 && <EmptyState icon="heart-outline" message="No favorites yet. Tap the heart on a listing to save it." />}
       <FlatList
         data={listings}
         keyExtractor={(item) => item.id}
